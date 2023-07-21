@@ -71,7 +71,7 @@ col1, col2, *_ = st.columns(4)
 with col1:
     st.write(f"**Patient ID:** {record.patient_id}")
     st.write(f"**Age:** {record.age}")
-    st.write(f"**Age:** {'M' if record.sex == 0 else 'F'}")
+    st.write(f"**Sex:** {'M' if record.sex == 0 else 'F'}")
     st.write(f"**Date:** {record.recording_date}")
 
 with col2:
