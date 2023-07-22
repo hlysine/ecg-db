@@ -165,12 +165,14 @@ with col4:
     st.button("New ECG with heart axis", key='new_ecg4',
               help='Click to see a new ECG with heart axis data', on_click=lambda: random_record(False, False, True))
 
-with st.expander("Filter by condition", expanded=st.session_state["expander_state"]):
-    if st.session_state["expander_state"] == False:
+if st.session_state["expander_state"] == False:
+    with st.expander("Filter by condition", expanded=st.session_state["expander_state"]):
         cols = st.columns(4)
         for i in range(len(annotation_df)):
             cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
                 False, False, False, annotation_df.iloc[i].name))
+else:
+    st.write('**Loading...**')
 
 st.write("----------------------------")
 
@@ -503,8 +505,8 @@ chart_mode = st.selectbox(
 fig = plot_ecg(lead_signals, sampling_rate, chart_mode)
 st.altair_chart(fig, use_container_width=False)
 
-with st.expander("ECG Analysis", expanded=st.session_state["expander_state"]):
-    if st.session_state["expander_state"] == False:
+if st.session_state["expander_state"] == False:
+    with st.expander("ECG Analysis", expanded=st.session_state["expander_state"]):
         for code, prob in record.scp_codes.items():
             annotation = annotation_df.loc[code]
             st.write(f"""
@@ -538,6 +540,8 @@ with st.expander("ECG Analysis", expanded=st.session_state["expander_state"]):
         with col4:
             st.write(f"**Static Noise:** {record.static_noise}")
             st.write(f"**Burst Noise:** {record.burst_noise}")
+else:
+    st.write('**Loading...**')
 
 if st.session_state["expander_state"] == True:
     st.session_state["expander_state"] = False
