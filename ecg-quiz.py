@@ -36,7 +36,7 @@ Click to see a random ECG and try to guess the diagnosis.
 """)
 
 
-@st.cache_data
+@st.cache_data(ttl=60 * 60)
 def load_records():
     def optional_int(x): return pd.NA if x == '' else int(float(x))
     def optional_float(x): return pd.NA if x == '' else float(x)
@@ -89,7 +89,7 @@ def applyFilter():
 applyFilter()
 
 
-@st.cache_data
+@st.cache_data(ttl=60 * 60)
 def load_annotations():
     # Load scp_statements.csv for diagnostic aggregation
     def int_bool(x): return False if x == '' else True
@@ -183,7 +183,7 @@ with col4:
     st.write(f"**ECG Device:** {record.device}")
 
 
-@st.cache_data
+@st.cache_data(ttl=60 * 60)
 def load_raw_data(df, sampling_rate, path):
     if sampling_rate == 100:
         data = wfdb.rdsamp(path + df.filename_lr)
@@ -199,7 +199,7 @@ def load_raw_data(df, sampling_rate, path):
 lead_signals = load_raw_data(record, sampling_rate, path)
 
 
-@st.cache_resource
+@st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate):
     fig, axes = wfdb.plot_items(
         [lead['signals'] for lead in lead_signals],
