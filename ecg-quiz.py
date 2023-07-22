@@ -199,6 +199,9 @@ lead_signals = load_raw_data(record, sampling_rate, path)
 
 @ st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate, chart_mode):
+    alt.renderers.set_embed_options(
+        padding={"left": 0, "right": 0, "bottom": 0, "top": 0}
+    )
     if chart_mode == 'Continuous':
         chart_x_min = 0
         chart_x_max = 10 * sampling_rate
@@ -281,6 +284,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                     domain=(chart_x_min, chart_x_max), padding=0)),
             y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_y_min, chart_y_max), padding=0)),
+            tooltip=alt.value(None),
         )
         return chart
     else:
@@ -451,6 +455,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                     domain=(chart_x_min, chart_x_max), padding=0)),
             y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_y_min, chart_y_max), padding=0)),
+            tooltip=alt.value(None),
         )
         return chart
 
