@@ -212,21 +212,21 @@ for i in range(0, 10 * sampling_rate, 4):
 @ st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate):
     return alt.layer(
-        alt.Chart(minor_grid_df).mark_rule(clip=True, stroke='#252525').encode(
+        alt.Chart(minor_grid_df).mark_rule(clip=False, stroke='#252525').encode(
             x='x:Q',
             x2='x2:Q',
             y='y:Q',
             y2='y2:Q',
             tooltip=alt.value(None),
         ),
-        alt.Chart(grid_df).mark_rule(clip=True, stroke='#555').encode(
+        alt.Chart(grid_df).mark_rule(clip=False, stroke='#555').encode(
             x='x:Q',
             x2='x2:Q',
             y='y:Q',
             y2='y2:Q',
             tooltip=alt.value(None),
         ),
-        alt.Chart(lead_signals).mark_line(clip=True).encode(
+        alt.Chart(lead_signals).mark_line(clip=False).encode(
             alt.X('index', type='quantitative',
                   axis=alt.Axis(labels=False, title="", grid=False), scale=alt.Scale(domain=(0, 10 * sampling_rate))),
             alt.Y(alt.repeat('row'), type='quantitative', axis=alt.Axis(
