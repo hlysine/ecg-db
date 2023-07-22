@@ -201,28 +201,41 @@ for i in range(-4, 4, 1):
 for i in range(0, 10 * sampling_rate, 20):
     grid_df.loc[len(grid_df.index)] = [i, -2, i, 2]
 
+minor_grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
+for i in range(-20, 20, 1):
+    minor_grid_df.loc[len(minor_grid_df.index)] = [
+        0, i / 10, 10 * sampling_rate, i / 10]
+for i in range(0, 10 * sampling_rate, 4):
+    minor_grid_df.loc[len(minor_grid_df.index)] = [i, -2, i, 2]
+
 
 @ st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate):
     return alt.layer(
-        alt.Chart(grid_df).mark_rule(clip=True).encode(
+        alt.Chart(minor_grid_df).mark_rule(clip=True, stroke='#252525').encode(
             x='x:Q',
             x2='x2:Q',
             y='y:Q',
             y2='y2:Q',
             tooltip=alt.value(None),
-            color=alt.value('#555')
+        ),
+        alt.Chart(grid_df).mark_rule(clip=True, stroke='#555').encode(
+            x='x:Q',
+            x2='x2:Q',
+            y='y:Q',
+            y2='y2:Q',
+            tooltip=alt.value(None),
         ),
         alt.Chart(lead_signals).mark_line(clip=True).encode(
             alt.X('index', type='quantitative',
-                  axis=alt.Axis(labels=False, title="", tickCount=250, tickWidth=1, tickRound=False), scale=alt.Scale(domain=(0, 10 * sampling_rate))),
+                  axis=alt.Axis(labels=False, title="", grid=False), scale=alt.Scale(domain=(0, 10 * sampling_rate))),
             alt.Y(alt.repeat('row'), type='quantitative', axis=alt.Axis(
-                labels=False, tickCount=30, tickWidth=1, tickRound=False), scale=alt.Scale(domain=(-1.5, 1.5))),
+                labels=False, grid=False), scale=alt.Scale(domain=(-1.5, 1.5))),
             tooltip=alt.value(None),
         ),
     ).properties(
         width=1600,
-        height=210,
+        height=250,
     ).repeat(
         row=lead_signals.columns.values[1:]
     ).configure_concat(
