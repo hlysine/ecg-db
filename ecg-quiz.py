@@ -166,10 +166,11 @@ with col4:
               help='Click to see a new ECG with heart axis data', on_click=lambda: random_record(False, False, True))
 
 with st.expander("Filter by condition", expanded=st.session_state["expander_state"]):
-    cols = st.columns(4)
-    for i in range(len(annotation_df)):
-        cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
-            False, False, False, annotation_df.iloc[i].name))
+    if st.session_state["expander_state"] == False:
+        cols = st.columns(4)
+        for i in range(len(annotation_df)):
+            cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
+                False, False, False, annotation_df.iloc[i].name))
 
 st.write("----------------------------")
 
