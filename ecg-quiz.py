@@ -1,4 +1,5 @@
 import random
+from turtle import color
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,6 +8,7 @@ import ast
 import time
 from zipfile import ZipFile
 import os.path
+import altair as alt
 
 # Define constants
 path = 'ptb-xl/'
@@ -189,59 +191,56 @@ def load_raw_data(df, sampling_rate, path):
         data = wfdb.rdsamp(path + df.filename_lr)
     else:
         data = wfdb.rdsamp(path + df.filename_hr)
-    data = (data[0].transpose(), data[1])
-    data = list(zip(data[0], data[1]['units'], data[1]['sig_name']))
-    data = [{'signals': np.array(signals), 'unit': unit, 'lead': lead,
-             'sampling_rate': sampling_rate} for signals, unit, lead in data]
+    data = pd.DataFrame(data[0], columns=data[1]['sig_name']).reset_index()
     return data
 
 
 lead_signals = load_raw_data(record, sampling_rate, path)
+grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
+for i in range(-4, 4, 1):
+    grid_df.loc[len(grid_df.index)] = [0, i / 2, 10 * sampling_rate, i / 2]
+for i in range(0, 10 * sampling_rate, 20):
+    grid_df.loc[len(grid_df.index)] = [i, -2, i, 2]
 
 
-@st.cache_resource(max_entries=2)
+@ st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate):
-    fig, axes = wfdb.plot_items(
-        [lead['signals'] for lead in lead_signals],
-        sig_name=[lead['lead'] for lead in lead_signals],
-        fs=sampling_rate,
-        sig_units=[lead['unit'] for lead in lead_signals],
-        ylabel=[lead['lead'] for lead in lead_signals],
-        time_units='seconds',
-        figsize=(30, 37),
-        sharex=True,
-        sharey=False,
-        return_fig_axes=True,
+    return alt.layer(
+        alt.Chart(grid_df).mark_rule(clip=True).encode(
+            x='x:Q',
+            x2='x2:Q',
+            y='y:Q',
+            y2='y2:Q',
+            tooltip=alt.value(None),
+            color=alt.value('#555')
+        ),
+        alt.Chart(lead_signals).mark_line(clip=True).encode(
+            alt.X('index', type='quantitative',
+                  axis=alt.Axis(labels=False, title="", tickCount=250, tickWidth=1, tickRound=False), scale=alt.Scale(domain=(0, 10 * sampling_rate))),
+            alt.Y(alt.repeat('row'), type='quantitative', axis=alt.Axis(
+                labels=False, tickCount=30, tickWidth=1, tickRound=False), scale=alt.Scale(domain=(-1.5, 1.5))),
+            tooltip=alt.value(None),
+        ),
+    ).properties(
+        width=1600,
+        height=210,
+    ).repeat(
+        row=lead_signals.columns.values[1:]
+    ).configure_concat(
+        spacing=0
+    ).configure_facet(
+        spacing=0
     )
-    fig.subplots_adjust(hspace=.0, wspace=.0)
-    fig.set_clip_on(False)
-    major_ticks_x = np.arange(0, 10, 0.2)
-    minor_ticks_x = np.arange(0, 10, 0.04)
-    major_ticks_y = np.arange(-1.5, 1.5, 0.5)
-    minor_ticks_y = np.arange(-1.5, 1.5, 0.1)
-    for axis in axes:
-        axis.set_ylim(-1.5, 1.5)
-        axis.set_xlim(0, 10)
-        axis.margins(y=0)
-        axis.set_clip_on(False)
-        axis.set_xticklabels([])
-        axis.set_yticklabels([])
-        axis.set_xticks(major_ticks_x)
-        axis.set_xticks(minor_ticks_x, minor=True)
-        axis.set_yticks(major_ticks_y)
-        axis.set_yticks(minor_ticks_y, minor=True)
-        axis.grid(which='minor', alpha=0.3)
-        axis.grid(which='major', alpha=0.6, linewidth=1.5)
-    return fig
 
 
 fig = plot_ecg(lead_signals, sampling_rate)
-st.write(fig)
+st.altair_chart(fig, use_container_width=False)
 
 with st.expander("ECG Analysis", expanded=st.session_state["expander_state"]):
-    for code, prob in record.scp_codes.items():
-        annotation = annotation_df.loc[code]
-        st.write(f"""
+    if st.session_state["expander_state"] == False:
+        for code, prob in record.scp_codes.items():
+            annotation = annotation_df.loc[code]
+            st.write(f"""
 > `{f"{annotation.diagnostic_class} > {annotation.diagnostic_subclass} > {annotation.name}" if not pd.isna(annotation.diagnostic_class) and not pd.isna(annotation.diagnostic_subclass) else
     f"{annotation.diagnostic_class} > {annotation.name}" if not pd.isna(annotation.diagnostic_class) else annotation.name}` - {"unknown likelihood" if prob == 0 else f"**{prob}%**"}
 >
@@ -250,28 +249,28 @@ with st.expander("ECG Analysis", expanded=st.session_state["expander_state"]):
 > **{annotation['SCP-ECG Statement Description']}**
 
 
-""")
+    """)
 
-    st.write("---------------------")
+        st.write("---------------------")
 
-    col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        st.write(f"**Heart Axis:** {record.heart_axis}")
-        st.write(f"**Pacemaker:** {record.pacemaker}")
-        st.write(f"**Extra Beats:** {record.extra_beats}")
+        with col1:
+            st.write(f"**Heart Axis:** {record.heart_axis}")
+            st.write(f"**Pacemaker:** {record.pacemaker}")
+            st.write(f"**Extra Beats:** {record.extra_beats}")
 
-    with col2:
-        st.write(f"**Infarction Stadium 1:** {record.infarction_stadium1}")
-        st.write(f"**Infarction Stadium 2:** {record.infarction_stadium2}")
+        with col2:
+            st.write(f"**Infarction Stadium 1:** {record.infarction_stadium1}")
+            st.write(f"**Infarction Stadium 2:** {record.infarction_stadium2}")
 
-    with col3:
-        st.write(f"**Baseline Drift:** {record.baseline_drift}")
-        st.write(f"**Electrode Problems:** {record.electrodes_problems}")
+        with col3:
+            st.write(f"**Baseline Drift:** {record.baseline_drift}")
+            st.write(f"**Electrode Problems:** {record.electrodes_problems}")
 
-    with col4:
-        st.write(f"**Static Noise:** {record.static_noise}")
-        st.write(f"**Burst Noise:** {record.burst_noise}")
+        with col4:
+            st.write(f"**Static Noise:** {record.static_noise}")
+            st.write(f"**Burst Noise:** {record.burst_noise}")
 
 if st.session_state["expander_state"] == True:
     st.session_state["expander_state"] = False
