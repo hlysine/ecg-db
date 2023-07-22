@@ -29,6 +29,8 @@ if "second_opinion" not in st.session_state:
     st.session_state["second_opinion"] = False
 if "heart_axis" not in st.session_state:
     st.session_state["heart_axis"] = False
+if "scp_code" not in st.session_state:
+    st.session_state["scp_code"] = None
 
 st.write("""
 # ECG Quiz
@@ -85,6 +87,9 @@ def applyFilter():
         record_df = record_df[record_df.second_opinion]
     if st.session_state["heart_axis"]:
         record_df = record_df[pd.isna(record_df.heart_axis) == False]
+    if st.session_state["scp_code"] is not None:
+        record_df = record_df[record_df.scp_codes.apply(
+            lambda x: st.session_state["scp_code"] in x)]
 
 
 applyFilter()
@@ -124,11 +129,12 @@ if st.session_state["record_index"] is None:
 record = record_df.iloc[st.session_state["record_index"]]
 
 
-def random_record(validated_by_human, second_opinion, heart_axis):
+def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None):
     global record
     st.session_state["validated_by_human"] = validated_by_human
     st.session_state["second_opinion"] = second_opinion
     st.session_state["heart_axis"] = heart_axis
+    st.session_state["scp_code"] = scp_code
     applyFilter()
     st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
     st.session_state["expander_state"] = True
@@ -148,6 +154,12 @@ with col3:
 with col4:
     st.button("New ECG with heart axis", key='new_ecg4',
               help='Click to see a new ECG with heart axis data', on_click=lambda: random_record(False, False, True))
+
+with st.expander("Filter by condition", expanded=st.session_state["expander_state"]):
+    cols = st.columns(4)
+    for i in range(len(annotation_df)):
+        cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
+            False, False, False, annotation_df.iloc[i].name))
 
 st.write("----------------------------")
 
