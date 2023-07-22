@@ -31,6 +31,13 @@ if "heart_axis" not in st.session_state:
     st.session_state["heart_axis"] = False
 if "scp_code" not in st.session_state:
     st.session_state["scp_code"] = None
+query_params = st.experimental_get_query_params()
+if "ecg" in query_params:
+    st.session_state["record_index"] = int(query_params["ecg"][0]) - 1
+    st.session_state["validated_by_human"] = False
+    st.session_state["second_opinion"] = False
+    st.session_state["heart_axis"] = False
+    st.session_state["scp_code"] = None
 
 st.write("""
 # ECG Quiz
@@ -128,6 +135,7 @@ if st.session_state["record_index"] is None:
     st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
 
 record = record_df.iloc[st.session_state["record_index"]]
+st.experimental_set_query_params(ecg=record.name)
 
 
 def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None):
@@ -137,6 +145,7 @@ def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None)
     st.session_state["heart_axis"] = heart_axis
     st.session_state["scp_code"] = scp_code
     applyFilter()
+    st.experimental_set_query_params(ecg='')
     st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
     st.session_state["expander_state"] = True
 
