@@ -391,10 +391,13 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                 i, chart_y_min, i, chart_y_max]
 
         text_df = pd.DataFrame(columns=['x', 'y', 'text'])
+        separator_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
 
         for config in lead_config:
             if config['start_x'] > 0:
                 lead_signals[config['lead']].iloc[:config['start_x']] = pd.NA
+                separator_df.loc[len(separator_df.index)] = [
+                    config['start_x'], config['y'] * 3 - 0.5, config['start_x'], config['y'] * 3 + 0.5]
             if config['end_x'] < 10 * sampling_rate:
                 lead_signals[config['lead']].iloc[config['end_x']:] = pd.NA
             else:
@@ -442,13 +445,22 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
         )
 
         for config in lead_config:
-            chart += alt.Chart(lead_signals).mark_line(clip=True).encode(
+            chart += alt.Chart(lead_signals).mark_line(clip=True, stroke="#7abaed").encode(
                 x=alt.X('index', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 y=alt.Y(config['lead'], type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_y_min, chart_y_max), padding=0)),
                 tooltip=alt.value(None),
             )
+        chart += alt.Chart(separator_df).mark_rule(clip=True, stroke="#7abaed").encode(
+            x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
+                    domain=(chart_x_min, chart_x_max), padding=0)),
+            x2=alt.X2('x2'),
+            y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
+                    domain=(chart_y_min, chart_y_max), padding=0)),
+            y2=alt.Y2('y2'),
+            tooltip=alt.value(None),
+        )
         chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill='#fff').encode(
             text='text',
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
