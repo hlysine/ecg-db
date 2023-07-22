@@ -1,5 +1,4 @@
 import random
-from turtle import color
 import streamlit as st
 import pandas as pd
 import numpy as np
