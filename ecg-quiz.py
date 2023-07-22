@@ -260,7 +260,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             )
         ).properties(
             width=1600,
-            height=1600 / 50 * 72,
+            height=1600 / 50 * 72 + 20,  # 20px padding
         ).configure_concat(
             spacing=0
         ).configure_facet(
@@ -431,7 +431,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             )
         ).properties(
             width=1600,
-            height=1600 / 50 * 24,
+            height=1600 / 50 * 24 + 20,  # 20px padding
         ).configure_concat(
             spacing=0
         ).configure_facet(
