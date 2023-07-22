@@ -118,6 +118,7 @@ def load_annotations():
         }
     )
     annotation_df.index.name = 'scp_code'
+    annotation_df.sort_values('description', inplace=True)
     return annotation_df
 
 
