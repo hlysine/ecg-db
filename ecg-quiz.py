@@ -195,54 +195,87 @@ def load_raw_data(df, sampling_rate, path):
 
 
 lead_signals = load_raw_data(record, sampling_rate, path)
-grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
-for i in range(-4, 4, 1):
-    grid_df.loc[len(grid_df.index)] = [0, i / 2, 10 * sampling_rate, i / 2]
-for i in range(0, 10 * sampling_rate, 20):
-    grid_df.loc[len(grid_df.index)] = [i, -2, i, 2]
-
-minor_grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
-for i in range(-20, 20, 1):
-    minor_grid_df.loc[len(minor_grid_df.index)] = [
-        0, i / 10, 10 * sampling_rate, i / 10]
-for i in range(0, 10 * sampling_rate, 4):
-    minor_grid_df.loc[len(minor_grid_df.index)] = [i, -2, i, 2]
 
 
 @ st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate):
-    return alt.layer(
+    chart_x_min = 0
+    chart_x_max = 10 * sampling_rate
+    chart_y_min = -2
+    chart_y_max = 46
+
+    grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
+    for i in range(chart_y_min * 2, chart_y_max * 2, 1):
+        grid_df.loc[len(grid_df.index)] = [
+            chart_x_min, i / 2, chart_x_max, i / 2]
+    for i in range(chart_x_min, chart_x_max, 20):
+        grid_df.loc[len(grid_df.index)] = [i, chart_y_min, i, chart_y_max]
+
+    minor_grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
+    for i in range(chart_y_min * 10, chart_y_max * 10, 1):
+        minor_grid_df.loc[len(minor_grid_df.index)] = [
+            chart_x_min, i / 10, chart_x_max, i / 10]
+    for i in range(chart_x_min, chart_x_max, 4):
+        minor_grid_df.loc[len(minor_grid_df.index)] = [
+            i, chart_y_min, i, chart_y_max]
+
+    text_df = pd.DataFrame(columns=['x', 'y', 'text'])
+
+    lead_names = lead_signals.columns.values[1:]
+    leads_count = len(lead_names)
+    for i in range(leads_count):
+        lead_signals[lead_names[i]] = lead_signals[lead_names[i]
+                                                   ] + (leads_count - i - 1) * 4
+        text_df.loc[len(text_df.index)] = [
+            4, (leads_count - i - 1) * 4 + 1.5, lead_names[i]]
+
+    chart = alt.layer(
         alt.Chart(minor_grid_df).mark_rule(clip=False, stroke='#252525').encode(
-            x='x:Q',
-            x2='x2:Q',
-            y='y:Q',
-            y2='y2:Q',
+            x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_x_min, chart_x_max), padding=0)),
+            x2=alt.X2('x2'),
+            y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_y_min, chart_y_max), padding=0)),
+            y2=alt.Y2('y2'),
             tooltip=alt.value(None),
         ),
         alt.Chart(grid_df).mark_rule(clip=False, stroke='#555').encode(
-            x='x:Q',
-            x2='x2:Q',
-            y='y:Q',
-            y2='y2:Q',
+            x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_x_min, chart_x_max), padding=0)),
+            x2=alt.X2('x2'),
+            y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_y_min, chart_y_max), padding=0)),
+            y2=alt.Y2('y2'),
             tooltip=alt.value(None),
-        ),
-        alt.Chart(lead_signals).mark_line(clip=False).encode(
-            alt.X('index', type='quantitative',
-                  axis=alt.Axis(labels=False, title="", grid=False), scale=alt.Scale(domain=(0, 10 * sampling_rate))),
-            alt.Y(alt.repeat('row'), type='quantitative', axis=alt.Axis(
-                labels=False, grid=False), scale=alt.Scale(domain=(-1.5, 1.5))),
-            tooltip=alt.value(None),
-        ),
+        )
     ).properties(
         width=1600,
-        height=250,
-    ).repeat(
-        row=lead_signals.columns.values[1:]
+        height=3200,
     ).configure_concat(
         spacing=0
     ).configure_facet(
         spacing=0
+    ).configure_axis(
+        grid=False,
+        labels=False,
     )
+
+    for col in lead_signals.columns.values[1:]:
+        chart += alt.Chart(lead_signals).mark_line(clip=True).encode(
+            x=alt.X('index', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_x_min, chart_x_max), padding=0)),
+            y=alt.Y(col, type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_y_min, chart_y_max), padding=0)),
+            tooltip=alt.value(None),
+        )
+    chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill='#fff').encode(
+        text='text',
+        x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_x_min, chart_x_max), padding=0)),
+        y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
+                domain=(chart_y_min, chart_y_max), padding=0)),
+    )
+    return chart
 
 
 fig = plot_ecg(lead_signals, sampling_rate)
