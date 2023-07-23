@@ -13,12 +13,16 @@ import altair as alt
 path = 'ptb-xl/'
 sampling_rate = 100
 
+# Extract data archive if not already done
 if not os.path.isfile(path + 'ptbxl_database.csv'):
     with ZipFile("ptb-xl.zip", 'r') as zObject:
         zObject.extractall(path=path)
 
+# Configure libraries
 st.set_page_config(layout="wide")
 pd.set_option('display.max_columns', None)
+
+# Initialize session state
 if "expander_state" not in st.session_state:
     st.session_state["expander_state"] = False
 if "record_index" not in st.session_state:
@@ -48,10 +52,14 @@ Click to see a random ECG and try to guess the condition.
 
 @st.cache_data(ttl=60 * 60)
 def load_records():
+    """
+    Load and convert the ECG records to a DataFrame.
+    One record for each ECG taken.
+    """
     def optional_int(x): return pd.NA if x == '' else int(float(x))
     def optional_float(x): return pd.NA if x == '' else float(x)
     def optional_string(x): return pd.NA if x == '' else x
-    # load and convert annotation data
+
     record_df = pd.read_csv(
         path+'ptbxl_database.csv',
         index_col='ecg_id',
@@ -85,6 +93,9 @@ record_df = total_record_df
 
 
 def applyFilter():
+    """
+    Filter records based on filters in session state.
+    """
     global total_record_df
     global record_df
     record_df = total_record_df
@@ -104,7 +115,10 @@ applyFilter()
 
 @st.cache_data(ttl=60 * 60)
 def load_annotations():
-    # Load scp_statements.csv for diagnostic aggregation
+    """
+    Load and convert the ECG annotations to a DataFrame.
+    One row for each condition in SCP code.
+    """
     def int_bool(x): return False if x == '' else True
     def optional_int(x): return pd.NA if x == '' else int(float(x))
     def optional_string(x): return pd.NA if x == '' else x
@@ -131,15 +145,23 @@ def load_annotations():
 
 annotation_df = load_annotations()
 
+# Select a random ECG record
 if st.session_state["record_index"] is None:
     st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
 
 record = record_df.iloc[st.session_state["record_index"]]
+
+# Display the selected ECG id in the URL
+# Only do so if this is the final re-render
 if st.session_state["expander_state"] == False:
     st.experimental_set_query_params(ecg=record.name)
 
 
 def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None):
+    """
+    Set session states based on filters.
+    The page will be re-rendered automatically because this is used as an event handler.
+    """
     global record
     st.session_state["validated_by_human"] = validated_by_human
     st.session_state["second_opinion"] = second_opinion
@@ -149,6 +171,10 @@ def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None)
     st.experimental_set_query_params(ecg='')
     st.session_state["record_index"] = None
     st.session_state["expander_state"] = True
+
+# ===============================
+# ECG Filters
+# ===============================
 
 
 col1, col2, col3, col4 = st.columns(4)
@@ -179,6 +205,10 @@ st.write(f'*{len(record_df)} ECGs with the selected filters*')
 
 st.write("----------------------------")
 
+# ===============================
+# ECG Verification Status
+# ===============================
+
 box = st.warning
 if record.validated_by_human:
     box = st.info
@@ -192,6 +222,10 @@ box(f"""
 
 **Second opinion:** {'Yes' if record.second_opinion else 'No'}
 """)
+
+# ===============================
+# Patient Info
+# ===============================
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -212,8 +246,16 @@ with col4:
     st.write(f"**ECG Device:** {record.device}")
 
 
+# ===============================
+# ECG Chart
+# ===============================
+
+
 @st.cache_data(ttl=60 * 60)
 def load_raw_data(df, sampling_rate, path):
+    """
+    Load ECG signals from the raw data files.
+    """
     if sampling_rate == 100:
         data = wfdb.rdsamp(path + df.filename_lr)
     else:
@@ -227,6 +269,9 @@ lead_signals = load_raw_data(record, sampling_rate, path)
 
 @st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate, chart_mode):
+    """
+    Draw the ECG chart.
+    """
     alt.renderers.set_embed_options(
         padding={"left": 0, "right": 0, "bottom": 0, "top": 0}
     )
@@ -236,6 +281,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
         chart_y_min = -1.5
         chart_y_max = 34.5
 
+        # Prepare DataFrames for the grid lines
         grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
         for i in range(int(chart_y_min * 2), int(chart_y_max * 2), 1):
             grid_df.loc[len(grid_df.index)] = [
@@ -251,6 +297,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             minor_grid_df.loc[len(minor_grid_df.index)] = [
                 i, chart_y_min, i, chart_y_max]
 
+        # Prepare DataFrames for the text labels and modify the lead signals
         text_df = pd.DataFrame(columns=['x', 'y', 'text'])
 
         lead_names = lead_signals.columns.values[1:]
@@ -267,6 +314,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             text_df.loc[len(text_df.index)] = [
                 4, (leads_count - i - 1) * 3 + 1, lead_names[i]]
 
+        # Plot the grid lines
         chart = alt.layer(
             alt.Chart(minor_grid_df).mark_rule(clip=True, stroke='#252525').encode(
                 x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
@@ -298,6 +346,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             labels=False,
         )
 
+        # Plot the ECG signals
         for col in lead_signals.columns.values[1:]:
             chart += alt.Chart(lead_signals).mark_line(clip=True).encode(
                 x=alt.X('index', type='quantitative', title=None, scale=alt.Scale(
@@ -306,6 +355,8 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                     domain=(chart_y_min, chart_y_max), padding=0)),
                 tooltip=alt.value(None),
             )
+
+        # Plot the text labels
         chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill='#fff').encode(
             text='text',
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
@@ -314,8 +365,10 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                     domain=(chart_y_min, chart_y_max), padding=0)),
             tooltip=alt.value(None),
         )
+
         return chart
     else:
+        # Duplicate lead II into a new column
         lead_signals['II '] = lead_signals['II']
         lead_config = [
             {
@@ -403,6 +456,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
         chart_y_min = -1.5
         chart_y_max = 10.5
 
+        # Prepare DataFrames for the grid lines
         grid_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
         for i in range(int(chart_y_min * 2), int(chart_y_max * 2), 1):
             grid_df.loc[len(grid_df.index)] = [
@@ -418,6 +472,8 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             minor_grid_df.loc[len(minor_grid_df.index)] = [
                 i, chart_y_min, i, chart_y_max]
 
+        # Prepare DataFrames for the text labels and lead separators
+        # Also modify the lead signals
         text_df = pd.DataFrame(columns=['x', 'y', 'text'])
         separator_df = pd.DataFrame(columns=['x', 'y', 'x2', 'y2'])
 
@@ -441,6 +497,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             text_df.loc[len(text_df.index)] = [
                 config['start_x'] + 4, config['y'] * 3 + 1, config['lead']]
 
+        # Plot the grid lines
         chart = alt.layer(
             alt.Chart(minor_grid_df).mark_rule(clip=True, stroke='#252525').encode(
                 x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
@@ -472,6 +529,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             labels=False,
         )
 
+        # Plot the ECG signals
         for config in lead_config:
             chart += alt.Chart(lead_signals).mark_line(clip=True, stroke="#7abaed").encode(
                 x=alt.X('index', type='quantitative', title=None, scale=alt.Scale(
@@ -480,6 +538,8 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                     domain=(chart_y_min, chart_y_max), padding=0)),
                 tooltip=alt.value(None),
             )
+
+        # Plot the lead separators
         chart += alt.Chart(separator_df).mark_rule(clip=True, stroke="#7abaed").encode(
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
@@ -489,6 +549,8 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             y2=alt.Y2('y2'),
             tooltip=alt.value(None),
         )
+
+        # Plot the text labels
         chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill='#fff').encode(
             text='text',
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
@@ -497,6 +559,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                     domain=(chart_y_min, chart_y_max), padding=0)),
             tooltip=alt.value(None),
         )
+
         return chart
 
 
@@ -508,6 +571,11 @@ chart_mode = st.selectbox(
 fig = plot_ecg(lead_signals, sampling_rate, chart_mode)
 st.altair_chart(fig, use_container_width=False)
 
+# ===============================
+# ECG Analysis
+# ===============================
+
+# Only render the expander when this is the final re-render
 if st.session_state["expander_state"] == False:
     with st.expander("ECG Analysis", expanded=st.session_state["expander_state"]):
         for code, prob in record.scp_codes.items():
@@ -546,8 +614,13 @@ if st.session_state["expander_state"] == False:
 else:
     st.write('**Loading...**')
 
+# To forcibly collapse the expanders, the whole page is rendered twice.
+# In the first rerender, the expander is replaced by a placeholder markdown text.
+# In the second rerender, the expander is rendered and it defaults to collapsed
+# because it did not exist in the previous render.
 if st.session_state["expander_state"] == True:
     st.session_state["expander_state"] = False
-    # For some reason this fixes the problem!? 0.05 was as short as I could push it. When I went down to 0.01 sometimes the inconsistent button behavior would show up again.
+    # Wait for the client to sync up
     time.sleep(0.05)
+    # Start the second re-render
     st.experimental_rerun()
