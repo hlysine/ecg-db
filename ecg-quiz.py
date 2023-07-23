@@ -35,6 +35,8 @@ if "heart_axis" not in st.session_state:
     st.session_state["heart_axis"] = False
 if "scp_code" not in st.session_state:
     st.session_state["scp_code"] = None
+if "diagnostic_class" not in st.session_state:
+    st.session_state["diagnostic_class"] = None
 query_params = st.experimental_get_query_params()
 if "ecg" in query_params:
     st.session_state["record_index"] = int(query_params["ecg"][0]) - 1
@@ -42,6 +44,7 @@ if "ecg" in query_params:
     st.session_state["second_opinion"] = False
     st.session_state["heart_axis"] = False
     st.session_state["scp_code"] = None
+    st.session_state["diagnostic_class"] = None
 
 st.write("""
 # ECG Quiz
@@ -92,27 +95,6 @@ total_record_df = load_records()
 record_df = total_record_df
 
 
-def applyFilter():
-    """
-    Filter records based on filters in session state.
-    """
-    global total_record_df
-    global record_df
-    record_df = total_record_df
-    if st.session_state["validated_by_human"]:
-        record_df = record_df[record_df.validated_by_human]
-    if st.session_state["second_opinion"]:
-        record_df = record_df[record_df.second_opinion]
-    if st.session_state["heart_axis"]:
-        record_df = record_df[pd.isna(record_df.heart_axis) == False]
-    if st.session_state["scp_code"] is not None:
-        record_df = record_df[record_df.scp_codes.apply(
-            lambda x: st.session_state["scp_code"] in x)]
-
-
-applyFilter()
-
-
 @st.cache_data(ttl=60 * 60)
 def load_annotations():
     """
@@ -145,6 +127,33 @@ def load_annotations():
 
 annotation_df = load_annotations()
 
+
+def applyFilter():
+    """
+    Filter records based on filters in session state.
+    """
+    global total_record_df
+    global record_df
+    record_df = total_record_df
+    if st.session_state["validated_by_human"]:
+        record_df = record_df[record_df.validated_by_human]
+    if st.session_state["second_opinion"]:
+        record_df = record_df[record_df.second_opinion]
+    if st.session_state["heart_axis"]:
+        record_df = record_df[pd.isna(record_df.heart_axis) == False]
+    if st.session_state["scp_code"] is not None:
+        record_df = record_df[record_df.scp_codes.apply(
+            lambda x: st.session_state["scp_code"] in x)]
+    if st.session_state["diagnostic_class"] is not None:
+        class_list = annotation_df.reset_index().groupby(
+            ['diagnostic_class'])['scp_code'].apply(list)[st.session_state["diagnostic_class"]]
+
+        record_df = record_df[record_df.scp_codes.apply(
+            lambda x: any(item in class_list for item in x))]
+
+
+applyFilter()
+
 # Select a random ECG record
 if st.session_state["record_index"] is None:
     st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
@@ -157,7 +166,7 @@ if st.session_state["expander_state"] == False:
     st.experimental_set_query_params(ecg=record.name)
 
 
-def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None):
+def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None, diagnostic_class=None):
     """
     Set session states based on filters.
     The page will be re-rendered automatically because this is used as an event handler.
@@ -167,6 +176,7 @@ def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None)
     st.session_state["second_opinion"] = second_opinion
     st.session_state["heart_axis"] = heart_axis
     st.session_state["scp_code"] = scp_code
+    st.session_state["diagnostic_class"] = diagnostic_class
     applyFilter()
     st.experimental_set_query_params(ecg='')
     st.session_state["record_index"] = None
@@ -193,10 +203,22 @@ with col4:
               help='Click to see a new ECG with heart axis data', on_click=lambda: random_record(False, False, True))
 
 if st.session_state["expander_state"] == False:
+    with st.expander("Filter by class", expanded=st.session_state["expander_state"]):
+        cols = st.columns(2)
+        class_df = annotation_df.groupby(['diagnostic_class'])[
+            'Statement Category'].apply(set)
+        for i in range(len(class_df)):
+            description = ', '.join(class_df.iloc[i])
+            cols[i % 2].button(description, key=f'filter_class_{i}', help=f"Find a new ECG with description", on_click=lambda i=i: random_record(
+                False, False, False, None, class_df.index[i]))
+else:
+    st.write('**Loading...**')
+
+if st.session_state["expander_state"] == False:
     with st.expander("Filter by condition", expanded=st.session_state["expander_state"]):
         cols = st.columns(4)
         for i in range(len(annotation_df)):
-            cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
+            cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_condition_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
                 False, False, False, annotation_df.iloc[i].name))
 else:
     st.write('**Loading...**')
