@@ -42,7 +42,7 @@ if "ecg" in query_params:
 st.write("""
 # ECG Quiz
 
-Click to see a random ECG and try to guess the diagnosis.
+Click to see a random ECG and try to guess the condition.
 """)
 
 
@@ -135,7 +135,8 @@ if st.session_state["record_index"] is None:
     st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
 
 record = record_df.iloc[st.session_state["record_index"]]
-st.experimental_set_query_params(ecg=record.name)
+if st.session_state["expander_state"] == False:
+    st.experimental_set_query_params(ecg=record.name)
 
 
 def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None):
@@ -146,7 +147,7 @@ def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None)
     st.session_state["scp_code"] = scp_code
     applyFilter()
     st.experimental_set_query_params(ecg='')
-    st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
+    st.session_state["record_index"] = None
     st.session_state["expander_state"] = True
 
 
@@ -173,6 +174,8 @@ if st.session_state["expander_state"] == False:
                 False, False, False, annotation_df.iloc[i].name))
 else:
     st.write('**Loading...**')
+
+st.write(f'*{len(record_df)} ECGs with the selected filters*')
 
 st.write("----------------------------")
 
@@ -222,7 +225,7 @@ def load_raw_data(df, sampling_rate, path):
 lead_signals = load_raw_data(record, sampling_rate, path)
 
 
-@ st.cache_resource(max_entries=2)
+@st.cache_resource(max_entries=2)
 def plot_ecg(lead_signals, sampling_rate, chart_mode):
     alt.renderers.set_embed_options(
         padding={"left": 0, "right": 0, "bottom": 0, "top": 0}
