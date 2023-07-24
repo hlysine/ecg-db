@@ -589,16 +589,17 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode, theme):
         return chart
 
 
-chart_mode = st.selectbox(
-    'ECG Chart Mode',
-    options=('Report', 'Continuous'),
+if st.session_state["expander_state"] == False:
+    chart_mode = st.selectbox(
+        'ECG Chart Mode',
+        options=('Report', 'Continuous'),
+    )
 
-
-)
-
-fig = plot_ecg(lead_signals, sampling_rate,
-               chart_mode, st.session_state["theme"])
-st.altair_chart(fig, use_container_width=False)
+    fig = plot_ecg(lead_signals, sampling_rate,
+                   chart_mode, st.session_state["theme"])
+    st.altair_chart(fig, use_container_width=False)
+else:
+    st.info('**Loading ECG...**', icon='🔃')
 
 # ===============================
 # ECG Analysis
@@ -647,18 +648,19 @@ else:
 if st.session_state["expander_state"] == True:
     theme = st_js(
         """window.getComputedStyle( document.body ,null).getPropertyValue('background-color')""")
-    color = parse.color(theme)
-    if color.as_hsl_percent_triple()[2] > 50:
-        st.session_state["theme"] = "light"
-    else:
-        st.session_state["theme"] = "dark"
+    if theme != 0:
+        color = parse.color(theme)
+        if color.as_hsl_percent_triple()[2] > 50:
+            st.session_state["theme"] = "light"
+        else:
+            st.session_state["theme"] = "dark"
 
 
 # To forcibly collapse the expanders, the whole page is rendered twice.
 # In the first rerender, the expander is replaced by a placeholder markdown text.
 # In the second rerender, the expander is rendered and it defaults to collapsed
 # because it did not exist in the previous render.
-if st.session_state["expander_state"] == True:
+if st.session_state["expander_state"] == True and theme != 0:
     st.session_state["expander_state"] = False
     # Wait for the client to sync up
     time.sleep(0.05)
