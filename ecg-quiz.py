@@ -8,6 +8,8 @@ import time
 from zipfile import ZipFile
 import os.path
 import altair as alt
+from streamlit_javascript import st_javascript as st_js
+from csscolor import parse
 
 # Define constants
 path = 'ptb-xl/'
@@ -24,7 +26,7 @@ pd.set_option('display.max_columns', None)
 
 # Initialize session state
 if "expander_state" not in st.session_state:
-    st.session_state["expander_state"] = False
+    st.session_state["expander_state"] = True
 if "record_index" not in st.session_state:
     st.session_state["record_index"] = None
 if "validated_by_human" not in st.session_state:
@@ -37,6 +39,8 @@ if "scp_code" not in st.session_state:
     st.session_state["scp_code"] = None
 if "diagnostic_class" not in st.session_state:
     st.session_state["diagnostic_class"] = None
+if "theme" not in st.session_state:
+    st.session_state["theme"] = "dark"
 query_params = st.experimental_get_query_params()
 if "ecg" in query_params:
     st.session_state["record_index"] = int(query_params["ecg"][0]) - 1
@@ -290,7 +294,7 @@ lead_signals = load_raw_data(record, sampling_rate, path)
 
 
 @st.cache_resource(max_entries=2)
-def plot_ecg(lead_signals, sampling_rate, chart_mode):
+def plot_ecg(lead_signals, sampling_rate, chart_mode, theme):
     """
     Draw the ECG chart.
     """
@@ -338,7 +342,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
 
         # Plot the grid lines
         chart = alt.layer(
-            alt.Chart(minor_grid_df).mark_rule(clip=True, stroke='#252525').encode(
+            alt.Chart(minor_grid_df).mark_rule(clip=True, stroke=('#252525' if theme == 'dark' else '#dddddd')).encode(
                 x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 x2=alt.X2('x2'),
@@ -347,7 +351,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                 y2=alt.Y2('y2'),
                 tooltip=alt.value(None),
             ),
-            alt.Chart(grid_df).mark_rule(clip=True, stroke='#555').encode(
+            alt.Chart(grid_df).mark_rule(clip=True, stroke=('#555' if theme == 'dark' else '#bbb')).encode(
                 x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 x2=alt.X2('x2'),
@@ -370,7 +374,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
 
         # Plot the ECG signals
         for col in lead_signals.columns.values[1:]:
-            chart += alt.Chart(lead_signals).mark_line(clip=True).encode(
+            chart += alt.Chart(lead_signals).mark_line(clip=True, stroke=('#7abaed' if theme == 'dark' else '#05014a')).encode(
                 x=alt.X('index', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 y=alt.Y(col, type='quantitative', title=None, scale=alt.Scale(
@@ -379,7 +383,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             )
 
         # Plot the text labels
-        chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill='#fff').encode(
+        chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill=('#fff' if theme == 'dark' else '#020079')).encode(
             text='text',
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
@@ -521,7 +525,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
 
         # Plot the grid lines
         chart = alt.layer(
-            alt.Chart(minor_grid_df).mark_rule(clip=True, stroke='#252525').encode(
+            alt.Chart(minor_grid_df).mark_rule(clip=True, stroke=('#252525' if theme == 'dark' else '#dddddd')).encode(
                 x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 x2=alt.X2('x2'),
@@ -530,7 +534,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
                 y2=alt.Y2('y2'),
                 tooltip=alt.value(None),
             ),
-            alt.Chart(grid_df).mark_rule(clip=True, stroke='#555').encode(
+            alt.Chart(grid_df).mark_rule(clip=True, stroke=('#555' if theme == 'dark' else '#bbb')).encode(
                 x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 x2=alt.X2('x2'),
@@ -553,7 +557,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
 
         # Plot the ECG signals
         for config in lead_config:
-            chart += alt.Chart(lead_signals).mark_line(clip=True, stroke="#7abaed").encode(
+            chart += alt.Chart(lead_signals).mark_line(clip=True, stroke=('#7abaed' if theme == 'dark' else '#05014a')).encode(
                 x=alt.X('index', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
                 y=alt.Y(config['lead'], type='quantitative', title=None, scale=alt.Scale(
@@ -562,7 +566,7 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
             )
 
         # Plot the lead separators
-        chart += alt.Chart(separator_df).mark_rule(clip=True, stroke="#7abaed").encode(
+        chart += alt.Chart(separator_df).mark_rule(clip=True, stroke=('#7abaed' if theme == 'dark' else '#05014a')).encode(
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
                     domain=(chart_x_min, chart_x_max), padding=0)),
             x2=alt.X2('x2'),
@@ -573,12 +577,12 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
         )
 
         # Plot the text labels
-        chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill='#fff').encode(
+        chart += alt.Chart(text_df).mark_text(baseline='middle', align='left', size=20, fill=('#fff' if theme == 'dark' else '#020079')).encode(
             text='text',
             x=alt.X('x', type='quantitative', title=None, scale=alt.Scale(
-                    domain=(chart_x_min, chart_x_max), padding=0)),
+                domain=(chart_x_min, chart_x_max), padding=0)),
             y=alt.Y('y', type='quantitative', title=None, scale=alt.Scale(
-                    domain=(chart_y_min, chart_y_max), padding=0)),
+                domain=(chart_y_min, chart_y_max), padding=0)),
             tooltip=alt.value(None),
         )
 
@@ -588,9 +592,12 @@ def plot_ecg(lead_signals, sampling_rate, chart_mode):
 chart_mode = st.selectbox(
     'ECG Chart Mode',
     options=('Report', 'Continuous'),
+
+
 )
 
-fig = plot_ecg(lead_signals, sampling_rate, chart_mode)
+fig = plot_ecg(lead_signals, sampling_rate,
+               chart_mode, st.session_state["theme"])
 st.altair_chart(fig, use_container_width=False)
 
 # ===============================
@@ -635,6 +642,17 @@ if st.session_state["expander_state"] == False:
             st.write(f"**Burst Noise:** {record.burst_noise}")
 else:
     st.write('**Loading...**')
+
+# Detect browser theme
+if st.session_state["expander_state"] == True:
+    theme = st_js(
+        """window.getComputedStyle( document.body ,null).getPropertyValue('background-color')""")
+    color = parse.color(theme)
+    if color.as_hsl_percent_triple()[2] > 50:
+        st.session_state["theme"] = "light"
+    else:
+        st.session_state["theme"] = "dark"
+
 
 # To forcibly collapse the expanders, the whole page is rendered twice.
 # In the first rerender, the expander is replaced by a placeholder markdown text.
