@@ -10,15 +10,16 @@ import os.path
 import altair as alt
 from streamlit_javascript import st_javascript as st_js
 from csscolor import parse
+import subprocess
 
 # Define constants
-path = 'ptb-xl/'
+path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
 sampling_rate = 100
 
-# Extract data archive if not already done
+# Download data from kaggle
 if not os.path.isfile(path + 'ptbxl_database.csv'):
-    with ZipFile("ptb-xl.zip", 'r') as zObject:
-        zObject.extractall(path=path)
+    subprocess.run(['kaggle', 'datasets', 'download',
+                    'khyeh0719/ptb-xl-dataset', '--unzip'])
 
 # Configure libraries
 st.set_page_config(layout="wide")
