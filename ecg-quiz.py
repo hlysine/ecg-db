@@ -19,9 +19,9 @@ sampling_rate = 100
 
 # Download data from kaggle
 if not os.path.isfile(path + 'ptbxl_database.csv'):
-    subprocess.run(['pip', 'uninstall', 'kaggle'])
+    subprocess.run(['pip', 'uninstall', '-y', 'kaggle'])
     subprocess.run(['pip', 'install', '--user', 'kaggle'])
-    subprocess.run(['kaggle', 'datasets', 'download',
+    subprocess.run(['~/.local/bin/kaggle', 'datasets', 'download',
                     'khyeh0719/ptb-xl-dataset', '--unzip'])
 
 # Configure libraries
