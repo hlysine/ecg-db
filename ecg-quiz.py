@@ -653,13 +653,34 @@ else:
 
 hd_lead_signals = load_raw_data(record, 500, path)
 
-lead_angles = [
+frontal_lead_angles = [
     {'lead': 'I', 'angle': 0},
     {'lead': 'II', 'angle': 60},
     {'lead': 'III', 'angle': 120},
     {'lead': 'AVR', 'angle': -150},
     {'lead': 'AVL', 'angle': -30},
     {'lead': 'AVF', 'angle': 90},
+]
+
+h_frontal_lead_angles = [
+    {'lead': 'I', 'angle': 0},
+    {'lead': 'II', 'angle': 60},
+    {'lead': 'III', 'angle': 120},
+]
+
+l_frontal_lead_angles = [
+    {'lead': 'AVR', 'angle': -150},
+    {'lead': 'AVL', 'angle': -30},
+    {'lead': 'AVF', 'angle': 90},
+]
+
+transverse_lead_angles = [
+    {'lead': 'V1', 'angle': 120},
+    {'lead': 'V2', 'angle': 90},
+    {'lead': 'V3', 'angle': 75},
+    {'lead': 'V4', 'angle': 60},
+    {'lead': 'V5', 'angle': 30},
+    {'lead': 'V6', 'angle': 0},
 ]
 
 
@@ -701,7 +722,7 @@ def intersect(P0, P1):
     return p
 
 
-def compute_axis(timestamp):
+def compute_axis(timestamp, lead_angles):
     p0 = np.array([pol2cart(timestamp[lead['lead']], np.deg2rad(
         lead['angle'])) for lead in lead_angles])
     p1 = np.array([p0[i] + pol2cart(1, np.deg2rad(lead_angles[i]['angle'] + 90))
@@ -710,31 +731,96 @@ def compute_axis(timestamp):
     return intersect(p0, p1).flatten()
 
 
-@st.cache_resource(max_entries=2)
-def plot_vector(lead_signals, sampling_rate, theme):
-    lead_signals['axis'] = lead_signals.apply(compute_axis, axis=1)
-    lead_signals['axis_x'] = lead_signals['axis'].apply(lambda x: x[0])
-    lead_signals['axis_y'] = lead_signals['axis'].apply(lambda x: x[1])
-    lead_signals['axis_polar'] = lead_signals['axis'].apply(
-        lambda x: cart2pol(x[0], x[1]))
-    lead_signals['axis_rho'] = lead_signals['axis_polar'].apply(lambda x: x[0])
-    lead_signals['axis_phi'] = lead_signals['axis_polar'].apply(lambda x: x[1])
+@st.cache_data(max_entries=10)
+def calculate_vectors(lead_signals):
+    """
+    Calculate VCG data from the ECG data.
+    """
+    vector_signals = lead_signals.copy()
 
+    # calculate high-amplitude frontal leads (I, II, III)
+    vector_signals['h_frontal_axis'] = vector_signals.apply(
+        lambda r: compute_axis(r, h_frontal_lead_angles), axis=1)
+    vector_signals['h_frontal_axis_polar'] = vector_signals['h_frontal_axis'].apply(
+        lambda x: cart2pol(x[0], x[1]))
+    vector_signals['h_frontal_axis_rho'] = vector_signals['h_frontal_axis_polar'].apply(
+        lambda x: x[0])
+    vector_signals['h_frontal_axis_phi'] = vector_signals['h_frontal_axis_polar'].apply(
+        lambda x: x[1])
+
+    # calculate low-amplitude frontal leads (AVR, AVL, AVF)
+    vector_signals['l_frontal_axis'] = vector_signals.apply(
+        lambda r: compute_axis(r, l_frontal_lead_angles), axis=1)
+    vector_signals['l_frontal_axis_polar'] = vector_signals['l_frontal_axis'].apply(
+        lambda x: cart2pol(x[0], x[1]))
+    vector_signals['l_frontal_axis_rho'] = vector_signals['l_frontal_axis_polar'].apply(
+        lambda x: x[0])
+
+    # normalize low-amplitude frontal leads
+    h_mean = vector_signals['h_frontal_axis_rho'].mean()
+    l_mean = vector_signals['l_frontal_axis_rho'].mean()
+    for lead in l_frontal_lead_angles:
+        vector_signals[lead['lead']
+                       ] = vector_signals[lead['lead']] * h_mean / l_mean
+
+    # calculate combined frontal leads (I, II, III, AVR, AVL, AVF)
+    vector_signals['frontal_axis'] = vector_signals.apply(
+        lambda r: compute_axis(r, frontal_lead_angles), axis=1)
+    vector_signals['frontal_axis_polar'] = vector_signals['frontal_axis'].apply(
+        lambda x: cart2pol(x[0], x[1]))
+    vector_signals['frontal_axis_rho'] = vector_signals['frontal_axis_polar'].apply(
+        lambda x: x[0])
+    vector_signals['frontal_axis_phi'] = vector_signals['frontal_axis_polar'].apply(
+        lambda x: x[1])
+
+    # calculate transverse leads (V1, V2, V3, V4, V5, V6)
+    vector_signals['transverse_axis'] = vector_signals.apply(
+        lambda r: compute_axis(r, transverse_lead_angles), axis=1)
+    vector_signals['transverse_axis_polar'] = vector_signals['transverse_axis'].apply(
+        lambda x: cart2pol(x[0], x[1]))
+    vector_signals['transverse_axis_rho'] = vector_signals['transverse_axis_polar'].apply(
+        lambda x: x[0])
+    vector_signals['transverse_axis_phi'] = vector_signals['transverse_axis_polar'].apply(
+        lambda x: x[1])
+
+    return vector_signals
+
+
+@st.cache_resource(max_entries=2)
+def plot_vcg(lead_signals, sampling_rate, theme):
+    """
+    Draw the vectorcardiogram.
+    """
     if theme == 'dark':
         plt.style.use('dark_background')
     else:
         plt.style.use('default')
 
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    ax.set_theta_direction(-1)
-    ax.plot(lead_signals['axis_phi'], lead_signals['axis_rho'], linewidth=0.5)
+    plt.rcParams.update({'font.size': 6})
+
+    fig, ax = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
+    fig.patch.set_alpha(0.0)
+    fig.tight_layout(pad=2.0)
+
+    ax[0].set_theta_direction(-1)
+    ax[0].title.set_text("Frontal Vectorcardiogram")
+    ax[0].set_facecolor("none")
+    ax[0].plot(lead_signals['frontal_axis_phi'],
+               lead_signals['frontal_axis_rho'], linewidth=0.5, color="blue")
+
+    ax[1].set_theta_direction(-1)
+    ax[1].title.set_text("Transverse Vectorcardiogram")
+    ax[1].set_facecolor("none")
+    ax[1].plot(lead_signals['transverse_axis_phi'],
+               lead_signals['transverse_axis_rho'], linewidth=0.5, color="blue")
 
     return fig
 
 
 if st.session_state["expander_state"] == False:
     with st.expander("Frontal Vectorcardiogram (Approximation)", expanded=st.session_state["expander_state"]):
-        fig = plot_vector(hd_lead_signals, 500, st.session_state["theme"])
+        vector_signals = calculate_vectors(hd_lead_signals)
+        fig = plot_vcg(vector_signals, 500, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
 else:
     st.info('**Loading vectorcardiogram...**', icon='🔃')
