@@ -820,12 +820,12 @@ def plot_vcg(lead_signals, sampling_rate, theme):
 
 
 if st.session_state["expander_state"] == False:
-    with st.expander("Frontal Vectorcardiogram (Approximation)", expanded=st.session_state["expander_state"]):
+    with st.expander("Vectorcardiogram (Approximation)", expanded=st.session_state["expander_state"]):
         vector_signals = calculate_vectors(hd_lead_signals)
         fig = plot_vcg(vector_signals, 500, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
 else:
-    st.info('**Loading vectorcardiogram...**', icon='🔃')
+    st.info('**Loading VCG...**', icon='🔃')
 
 # Detect browser theme
 if st.session_state["expander_state"] == True:
