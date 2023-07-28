@@ -11,6 +11,7 @@ import altair as alt
 from streamlit_javascript import st_javascript as st_js
 from csscolor import parse
 import subprocess
+import matplotlib.pyplot as plt
 
 # Define constants
 path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
@@ -278,7 +279,7 @@ with col4:
 # ===============================
 
 
-@st.cache_data(ttl=60 * 60)
+@st.cache_data(max_entries=10)
 def load_raw_data(df, sampling_rate, path):
     """
     Load ECG signals from the raw data files.
@@ -644,6 +645,99 @@ if st.session_state["expander_state"] == False:
             st.write(f"**Burst Noise:** {record.burst_noise}")
 else:
     st.write('**Loading...**')
+
+
+# ===============================
+# Vectorcardiogram
+# ===============================
+
+hd_lead_signals = load_raw_data(record, 500, path)
+
+lead_angles = [
+    {'lead': 'I', 'angle': 0},
+    {'lead': 'II', 'angle': 60},
+    {'lead': 'III', 'angle': 120},
+    {'lead': 'AVR', 'angle': -150},
+    {'lead': 'AVL', 'angle': -30},
+    {'lead': 'AVF', 'angle': 90},
+]
+
+
+def cart2pol(x, y):
+    rho = np.sqrt(x**2 + y**2)
+    phi = np.arctan2(y, x)
+    return np.array([rho, phi])
+
+
+def pol2cart(rho, phi):
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return np.array([x, y])
+
+
+def intersect(P0, P1):
+    """P0 and P1 are NxD arrays defining N lines.
+    D is the dimension of the space. This function
+    returns the least squares intersection of the N
+    lines from the system given by eq. 13 in
+    http://cal.cs.illinois.edu/~johannes/research/LS_line_intersect.pdf.
+    """
+    # generate all line direction vectors
+    n = (P1-P0)/np.linalg.norm(P1-P0, axis=1)[:, np.newaxis]  # normalized
+
+    # generate the array of all projectors
+    projs = np.eye(n.shape[1]) - n[:, :, np.newaxis] * \
+        n[:, np.newaxis]  # I - n*n.T
+    # see fig. 1
+
+    # generate R matrix and q vector
+    R = projs.sum(axis=0)
+    q = (projs @ P0[:, :, np.newaxis]).sum(axis=0)
+
+    # solve the least squares problem for the
+    # intersection point p: Rp = q
+    p = np.linalg.lstsq(R, q, rcond=None)[0]
+
+    return p
+
+
+def compute_axis(timestamp):
+    p0 = np.array([pol2cart(timestamp[lead['lead']], np.deg2rad(
+        lead['angle'])) for lead in lead_angles])
+    p1 = np.array([p0[i] + pol2cart(1, np.deg2rad(lead_angles[i]['angle'] + 90))
+                  for i in range(len(lead_angles))])
+
+    return intersect(p0, p1).flatten()
+
+
+@st.cache_resource(max_entries=2)
+def plot_vector(lead_signals, sampling_rate, theme):
+    lead_signals['axis'] = lead_signals.apply(compute_axis, axis=1)
+    lead_signals['axis_x'] = lead_signals['axis'].apply(lambda x: x[0])
+    lead_signals['axis_y'] = lead_signals['axis'].apply(lambda x: x[1])
+    lead_signals['axis_polar'] = lead_signals['axis'].apply(
+        lambda x: cart2pol(x[0], x[1]))
+    lead_signals['axis_rho'] = lead_signals['axis_polar'].apply(lambda x: x[0])
+    lead_signals['axis_phi'] = lead_signals['axis_polar'].apply(lambda x: x[1])
+
+    if theme == 'dark':
+        plt.style.use('dark_background')
+    else:
+        plt.style.use('default')
+
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.set_theta_direction(-1)
+    ax.plot(lead_signals['axis_phi'], lead_signals['axis_rho'], linewidth=0.5)
+
+    return fig
+
+
+if st.session_state["expander_state"] == False:
+    with st.expander("Frontal Vectorcardiogram (Approximation)", expanded=st.session_state["expander_state"]):
+        fig = plot_vector(hd_lead_signals, 500, st.session_state["theme"])
+        st.pyplot(fig, use_container_width=False)
+else:
+    st.info('**Loading vectorcardiogram...**', icon='🔃')
 
 # Detect browser theme
 if st.session_state["expander_state"] == True:
