@@ -784,7 +784,7 @@ def plot_vcg(lead_signals, theme):
 
 
 @st.cache_resource(max_entries=2)
-def plot_vcg_3d(lead_signals, theme):
+def plot_vcg_3d(lead_signals, h_angle, v_angle, theme):
     """
     Draw the vectorcardiogram in 3D.
     """
@@ -803,7 +803,7 @@ def plot_vcg_3d(lead_signals, theme):
             lead_signals['Y'], lead_signals['Z'], linewidth=0.5, color="blue")
     ax.invert_yaxis()
     ax.title.set_text("Spatial Vectorcardiogram")
-    ax.view_init(None, None, None, vertical_axis='y')
+    ax.view_init(v_angle, h_angle, None, vertical_axis='y')
 
     return fig
 
@@ -839,8 +839,16 @@ if st.session_state["expander_state"] == False:
         vector_signals = calculate_kors_transform(hd_lead_signals)
         fig = plot_vcg(vector_signals, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
-        fig3d = plot_vcg_3d(vector_signals, st.session_state["theme"])
-        st.pyplot(fig3d, use_container_width=False)
+        col1, col2 = st.columns(spec=[0.2, 0.8])
+        with col1:
+            h_angle = st.slider("Horizontal view angle", min_value=-180,
+                                max_value=180, value=-60, step=5)
+            v_angle = st.slider("Vertical view angle", min_value=-180,
+                                max_value=180, value=30, step=5)
+        with col2:
+            fig3d = plot_vcg_3d(vector_signals, h_angle,
+                                v_angle, st.session_state["theme"])
+            st.pyplot(fig3d, use_container_width=False)
         # fig3d = plot_vcg_interactive(
         #     vector_signals, st.session_state["theme"])
         # stpyvista(fig3d)
