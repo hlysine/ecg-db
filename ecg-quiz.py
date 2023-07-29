@@ -282,7 +282,7 @@ with col4:
 # ===============================
 
 
-@st.cache_data(max_entries=10)
+@st.cache_data(max_entries=2)
 def load_raw_data(df, sampling_rate, path):
     """
     Load ECG signals from the raw data files.
@@ -711,7 +711,7 @@ def pol2cart(rho, phi):
     return np.array([x, y])
 
 
-@st.cache_data(max_entries=10)
+@st.cache_data(max_entries=2)
 def calculate_kors_transform(lead_signals):
     """
     Calculate VCG data from the ECG data using the Kors regression transformation.
