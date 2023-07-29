@@ -755,7 +755,7 @@ def plot_vcg(lead_signals, theme):
     else:
         plt.style.use('default')
 
-    plt.rcParams.update({'font.size': 8})
+    plt.rcParams.update({'font.size': 8, 'axes.titlepad': 40})
 
     fig, ax = plt.subplots(
         1, 3, subplot_kw={'projection': 'polar'}, figsize=(15, 15))
@@ -764,21 +764,27 @@ def plot_vcg(lead_signals, theme):
 
     ax[0].set_theta_direction(-1)
     ax[0].title.set_text("Frontal Vectorcardiogram")
+    fig.text(0.172, 0.662, "0º at +X, positive towards +Y",
+             horizontalalignment="center")
     ax[0].set_facecolor("none")
     ax[0].plot(lead_signals['frontal_phi'],
-               lead_signals['frontal_rho'], linewidth=0.5, color="blue")
+               lead_signals['frontal_rho'], linewidth=0.5, color=('#7abaed' if theme == 'dark' else '#05014a'))
 
     ax[1].set_theta_direction(-1)
     ax[1].title.set_text("Transverse Vectorcardiogram")
+    fig.text(0.5, 0.662, "0º at +X, positive towards -Z",
+             horizontalalignment="center")
     ax[1].set_facecolor("none")
     ax[1].plot(lead_signals['transverse_phi'],
-               lead_signals['transverse_rho'], linewidth=0.5, color="blue")
+               lead_signals['transverse_rho'], linewidth=0.5, color=('#7abaed' if theme == 'dark' else '#05014a'))
 
     ax[2].set_theta_direction(-1)
     ax[2].title.set_text("Sagittal Vectorcardiogram")
+    fig.text(0.829, 0.662, "0º at +Z, positive towards +Y",
+             horizontalalignment="center")
     ax[2].set_facecolor("none")
     ax[2].plot(lead_signals['sagittal_phi'],
-               lead_signals['sagittal_rho'], linewidth=0.5, color="blue")
+               lead_signals['sagittal_rho'], linewidth=0.5, color=('#7abaed' if theme == 'dark' else '#05014a'))
 
     return fig
 
@@ -795,12 +801,15 @@ def plot_vcg_3d(lead_signals, h_angle, v_angle, theme):
 
     plt.rcParams.update({'font.size': 8})
 
-    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(8, 8))
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(10, 8))
     fig.patch.set_alpha(0.0)
 
     ax.set_facecolor("none")
     ax.plot(lead_signals['X'],
             lead_signals['Y'], lead_signals['Z'], linewidth=0.5, color="blue")
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
     ax.invert_yaxis()
     ax.title.set_text("Spatial Vectorcardiogram")
     ax.view_init(v_angle, h_angle, None, vertical_axis='y')
