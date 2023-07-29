@@ -3,8 +3,6 @@ csscolor==0.5.1
 matplotlib==3.7.1
 numpy==1.24.2
 pandas==2.0.0
-pyvista==0.41.1
-stpyvista==0.0.8
 streamlit==1.22.0
 streamlit_javascript==0.1.5
 wfdb==4.1.2

@@ -13,8 +13,6 @@ import streamlit.components.v1 as components
 from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
-import pyvista as pv
-from stpyvista import stpyvista
 
 # Define constants
 path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
@@ -797,7 +795,7 @@ def plot_vcg_3d(lead_signals, theme):
 
     plt.rcParams.update({'font.size': 8})
 
-    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(5, 5))
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(8, 8))
     fig.patch.set_alpha(0.0)
 
     ax.set_facecolor("none")
@@ -810,30 +808,30 @@ def plot_vcg_3d(lead_signals, theme):
     return fig
 
 
-@st.cache_resource(max_entries=2)
-def plot_vcg_interactive(lead_signals, theme):
-    """
-    Draw the vectorcardiogram in 3D.
-    """
-    # pv.global_theme.show_scalar_bar = False
+# @st.cache_resource(max_entries=2)
+# def plot_vcg_interactive(lead_signals, theme):
+#     """
+#     Draw the vectorcardiogram in 3D.
+#     """
+#     # pv.global_theme.show_scalar_bar = False
 
-    p = pv.Plotter()
+#     p = pv.Plotter()
 
-    points = np.array(
-        [lead_signals['X'].values, lead_signals['Y'].values, lead_signals['Z'].values])
-    points = points.transpose()
+#     points = np.array(
+#         [lead_signals['X'].values, lead_signals['Y'].values, lead_signals['Z'].values])
+#     points = points.transpose()
 
-    spline = pv.Spline(points)
+#     spline = pv.Spline(points)
 
-    p.add_mesh(mesh=spline, color='blue')
+#     p.add_mesh(mesh=spline, color='blue')
 
-    p.show_grid()
-    if theme == 'dark':
-        p.set_background(color='#0e1117')
-    else:
-        p.set_background(color='#ffffff')
+#     p.show_grid()
+#     if theme == 'dark':
+#         p.set_background(color='#0e1117')
+#     else:
+#         p.set_background(color='#ffffff')
 
-    return p
+#     return p
 
 
 if st.session_state["expander_state"] == False:
@@ -841,14 +839,11 @@ if st.session_state["expander_state"] == False:
         vector_signals = calculate_kors_transform(hd_lead_signals)
         fig = plot_vcg(vector_signals, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
-        col1, col2 = st.columns(2)
-        with col1:
-            fig3d = plot_vcg_3d(vector_signals, st.session_state["theme"])
-            st.pyplot(fig3d, use_container_width=False)
-        with col2:
-            fig3d = plot_vcg_interactive(
-                vector_signals, st.session_state["theme"])
-            stpyvista(fig3d)
+        fig3d = plot_vcg_3d(vector_signals, st.session_state["theme"])
+        st.pyplot(fig3d, use_container_width=False)
+        # fig3d = plot_vcg_interactive(
+        #     vector_signals, st.session_state["theme"])
+        # stpyvista(fig3d)
         # fig_html = mpld3.fig_to_html(fig3d)
         # components.html(fig_html, height=600)
 else:
