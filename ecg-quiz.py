@@ -9,9 +9,12 @@ from zipfile import ZipFile
 import os.path
 import altair as alt
 from streamlit_javascript import st_javascript as st_js
+import streamlit.components.v1 as components
 from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
+import pyvista as pv
+from stpyvista import stpyvista
 
 # Define constants
 path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
@@ -655,34 +658,46 @@ else:
 
 hd_lead_signals = load_raw_data(record, 500, path)
 
-frontal_lead_angles = [
-    {'lead': 'I', 'angle': 0},
-    {'lead': 'II', 'angle': 60},
-    {'lead': 'III', 'angle': 120},
-    {'lead': 'AVR', 'angle': -150},
-    {'lead': 'AVL', 'angle': -30},
-    {'lead': 'AVF', 'angle': 90},
-]
-
-h_frontal_lead_angles = [
-    {'lead': 'I', 'angle': 0},
-    {'lead': 'II', 'angle': 60},
-    {'lead': 'III', 'angle': 120},
-]
-
-l_frontal_lead_angles = [
-    {'lead': 'AVR', 'angle': -150},
-    {'lead': 'AVL', 'angle': -30},
-    {'lead': 'AVF', 'angle': 90},
-]
-
-transverse_lead_angles = [
-    {'lead': 'V1', 'angle': 120},
-    {'lead': 'V2', 'angle': 90},
-    {'lead': 'V3', 'angle': 75},
-    {'lead': 'V4', 'angle': 60},
-    {'lead': 'V5', 'angle': 30},
-    {'lead': 'V6', 'angle': 0},
+kors_transform = [
+    {
+        'axis': 'X',
+        'leads': [
+            {'lead': 'V1', 'weight': -0.130},
+            {'lead': 'V2', 'weight': 0.050},
+            {'lead': 'V3', 'weight': -0.010},
+            {'lead': 'V4', 'weight': 0.140},
+            {'lead': 'V5', 'weight': 0.060},
+            {'lead': 'V6', 'weight': 0.540},
+            {'lead': 'I', 'weight': 0.380},
+            {'lead': 'II', 'weight': -0.070},
+        ]
+    },
+    {
+        'axis': 'Y',
+        'leads': [
+            {'lead': 'V1', 'weight': 0.060},
+            {'lead': 'V2', 'weight': -0.020},
+            {'lead': 'V3', 'weight': -0.050},
+            {'lead': 'V4', 'weight': 0.060},
+            {'lead': 'V5', 'weight': -0.170},
+            {'lead': 'V6', 'weight': 0.130},
+            {'lead': 'I', 'weight': -0.070},
+            {'lead': 'II', 'weight': 0.930},
+        ]
+    },
+    {
+        'axis': 'Z',
+        'leads': [
+            {'lead': 'V1', 'weight': -0.430},
+            {'lead': 'V2', 'weight': -0.060},
+            {'lead': 'V3', 'weight': -0.140},
+            {'lead': 'V4', 'weight': -0.200},
+            {'lead': 'V5', 'weight': -0.110},
+            {'lead': 'V6', 'weight': 0.310},
+            {'lead': 'I', 'weight': 0.110},
+            {'lead': 'II', 'weight': -0.230},
+        ]
+    }
 ]
 
 
@@ -698,98 +713,42 @@ def pol2cart(rho, phi):
     return np.array([x, y])
 
 
-def intersect(P0, P1):
-    """P0 and P1 are NxD arrays defining N lines.
-    D is the dimension of the space. This function
-    returns the least squares intersection of the N
-    lines from the system given by eq. 13 in
-    http://cal.cs.illinois.edu/~johannes/research/LS_line_intersect.pdf.
-    """
-    # generate all line direction vectors
-    n = (P1-P0)/np.linalg.norm(P1-P0, axis=1)[:, np.newaxis]  # normalized
-
-    # generate the array of all projectors
-    projs = np.eye(n.shape[1]) - n[:, :, np.newaxis] * \
-        n[:, np.newaxis]  # I - n*n.T
-    # see fig. 1
-
-    # generate R matrix and q vector
-    R = projs.sum(axis=0)
-    q = (projs @ P0[:, :, np.newaxis]).sum(axis=0)
-
-    # solve the least squares problem for the
-    # intersection point p: Rp = q
-    p = np.linalg.lstsq(R, q, rcond=None)[0]
-
-    return p
-
-
-def compute_axis(timestamp, lead_angles):
-    p0 = np.array([pol2cart(timestamp[lead['lead']], np.deg2rad(
-        lead['angle'])) for lead in lead_angles])
-    p1 = np.array([p0[i] + pol2cart(1, np.deg2rad(lead_angles[i]['angle'] + 90))
-                  for i in range(len(lead_angles))])
-
-    return intersect(p0, p1).flatten()
-
-
 @st.cache_data(max_entries=10)
-def calculate_vectors(lead_signals):
+def calculate_kors_transform(lead_signals):
     """
-    Calculate VCG data from the ECG data.
+    Calculate VCG data from the ECG data using the Kors regression transformation.
+    https://doi.org/10.3390/s19143072
     """
     vector_signals = lead_signals.copy()
 
-    # calculate high-amplitude frontal leads (I, II, III)
-    vector_signals['h_frontal_axis'] = vector_signals.apply(
-        lambda r: compute_axis(r, h_frontal_lead_angles), axis=1)
-    vector_signals['h_frontal_axis_polar'] = vector_signals['h_frontal_axis'].apply(
-        lambda x: cart2pol(x[0], x[1]))
-    vector_signals['h_frontal_axis_rho'] = vector_signals['h_frontal_axis_polar'].apply(
+    for axis in kors_transform:
+        vector_signals[axis['axis']] = vector_signals.apply(
+            lambda r: sum([r[lead['lead']] * lead['weight'] for lead in axis['leads']]), axis=1)
+
+    vector_signals['frontal'] = vector_signals.apply(
+        lambda r: cart2pol(r['X'], r['Y']), axis=1)
+    vector_signals['frontal_rho'] = vector_signals['frontal'].apply(
         lambda x: x[0])
-    vector_signals['h_frontal_axis_phi'] = vector_signals['h_frontal_axis_polar'].apply(
+    vector_signals['frontal_phi'] = vector_signals['frontal'].apply(
         lambda x: x[1])
-
-    # calculate low-amplitude frontal leads (AVR, AVL, AVF)
-    vector_signals['l_frontal_axis'] = vector_signals.apply(
-        lambda r: compute_axis(r, l_frontal_lead_angles), axis=1)
-    vector_signals['l_frontal_axis_polar'] = vector_signals['l_frontal_axis'].apply(
-        lambda x: cart2pol(x[0], x[1]))
-    vector_signals['l_frontal_axis_rho'] = vector_signals['l_frontal_axis_polar'].apply(
+    vector_signals['transverse'] = vector_signals.apply(
+        lambda r: cart2pol(r['X'], -r['Z']), axis=1)
+    vector_signals['transverse_rho'] = vector_signals['transverse'].apply(
         lambda x: x[0])
-
-    # normalize low-amplitude frontal leads
-    h_mean = vector_signals['h_frontal_axis_rho'].mean()
-    l_mean = vector_signals['l_frontal_axis_rho'].mean()
-    for lead in l_frontal_lead_angles:
-        vector_signals[lead['lead']
-                       ] = vector_signals[lead['lead']] * h_mean / l_mean
-
-    # calculate combined frontal leads (I, II, III, AVR, AVL, AVF)
-    vector_signals['frontal_axis'] = vector_signals.apply(
-        lambda r: compute_axis(r, frontal_lead_angles), axis=1)
-    vector_signals['frontal_axis_polar'] = vector_signals['frontal_axis'].apply(
-        lambda x: cart2pol(x[0], x[1]))
-    vector_signals['frontal_axis_rho'] = vector_signals['frontal_axis_polar'].apply(
-        lambda x: x[0])
-    vector_signals['frontal_axis_phi'] = vector_signals['frontal_axis_polar'].apply(
+    vector_signals['transverse_phi'] = vector_signals['transverse'].apply(
         lambda x: x[1])
-
-    # calculate transverse leads (V1, V2, V3, V4, V5, V6)
-    vector_signals['transverse_axis'] = vector_signals.apply(
-        lambda r: compute_axis(r, transverse_lead_angles), axis=1)
-    vector_signals['transverse_axis_polar'] = vector_signals['transverse_axis'].apply(
-        lambda x: cart2pol(x[0], x[1]))
-    vector_signals['transverse_axis_rho'] = vector_signals['transverse_axis_polar'].apply(
+    vector_signals['sagittal'] = vector_signals.apply(
+        lambda r: cart2pol(r['Z'], r['Y']), axis=1)
+    vector_signals['sagittal_rho'] = vector_signals['sagittal'].apply(
         lambda x: x[0])
-    vector_signals['transverse_axis_phi'] = vector_signals['transverse_axis_polar'].apply(
+    vector_signals['sagittal_phi'] = vector_signals['sagittal'].apply(
         lambda x: x[1])
 
     return vector_signals
 
 
 @st.cache_resource(max_entries=2)
-def plot_vcg(lead_signals, sampling_rate, theme):
+def plot_vcg(lead_signals, theme):
     """
     Draw the vectorcardiogram.
     """
@@ -798,32 +757,100 @@ def plot_vcg(lead_signals, sampling_rate, theme):
     else:
         plt.style.use('default')
 
-    plt.rcParams.update({'font.size': 6})
+    plt.rcParams.update({'font.size': 8})
 
-    fig, ax = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
+    fig, ax = plt.subplots(
+        1, 3, subplot_kw={'projection': 'polar'}, figsize=(15, 15))
     fig.patch.set_alpha(0.0)
     fig.tight_layout(pad=2.0)
 
     ax[0].set_theta_direction(-1)
     ax[0].title.set_text("Frontal Vectorcardiogram")
     ax[0].set_facecolor("none")
-    ax[0].plot(lead_signals['frontal_axis_phi'],
-               lead_signals['frontal_axis_rho'], linewidth=0.5, color="blue")
+    ax[0].plot(lead_signals['frontal_phi'],
+               lead_signals['frontal_rho'], linewidth=0.5, color="blue")
 
     ax[1].set_theta_direction(-1)
     ax[1].title.set_text("Transverse Vectorcardiogram")
     ax[1].set_facecolor("none")
-    ax[1].plot(lead_signals['transverse_axis_phi'],
-               lead_signals['transverse_axis_rho'], linewidth=0.5, color="blue")
+    ax[1].plot(lead_signals['transverse_phi'],
+               lead_signals['transverse_rho'], linewidth=0.5, color="blue")
+
+    ax[2].set_theta_direction(-1)
+    ax[2].title.set_text("Sagittal Vectorcardiogram")
+    ax[2].set_facecolor("none")
+    ax[2].plot(lead_signals['sagittal_phi'],
+               lead_signals['sagittal_rho'], linewidth=0.5, color="blue")
 
     return fig
 
 
+@st.cache_resource(max_entries=2)
+def plot_vcg_3d(lead_signals, theme):
+    """
+    Draw the vectorcardiogram in 3D.
+    """
+    if theme == 'dark':
+        plt.style.use('dark_background')
+    else:
+        plt.style.use('default')
+
+    plt.rcParams.update({'font.size': 8})
+
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(5, 5))
+    fig.patch.set_alpha(0.0)
+
+    ax.set_facecolor("none")
+    ax.plot(lead_signals['X'],
+            lead_signals['Y'], lead_signals['Z'], linewidth=0.5, color="blue")
+    ax.invert_yaxis()
+    ax.title.set_text("Spatial Vectorcardiogram")
+    ax.view_init(None, None, None, vertical_axis='y')
+
+    return fig
+
+
+@st.cache_resource(max_entries=2)
+def plot_vcg_interactive(lead_signals, theme):
+    """
+    Draw the vectorcardiogram in 3D.
+    """
+    # pv.global_theme.show_scalar_bar = False
+
+    p = pv.Plotter()
+
+    points = np.array(
+        [lead_signals['X'].values, lead_signals['Y'].values, lead_signals['Z'].values])
+    points = points.transpose()
+
+    spline = pv.Spline(points)
+
+    p.add_mesh(mesh=spline, color='blue')
+
+    p.show_grid()
+    if theme == 'dark':
+        p.set_background(color='#0e1117')
+    else:
+        p.set_background(color='#ffffff')
+
+    return p
+
+
 if st.session_state["expander_state"] == False:
     with st.expander("Vectorcardiogram (Approximation)", expanded=st.session_state["expander_state"]):
-        vector_signals = calculate_vectors(hd_lead_signals)
-        fig = plot_vcg(vector_signals, 500, st.session_state["theme"])
+        vector_signals = calculate_kors_transform(hd_lead_signals)
+        fig = plot_vcg(vector_signals, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
+        col1, col2 = st.columns(2)
+        with col1:
+            fig3d = plot_vcg_3d(vector_signals, st.session_state["theme"])
+            st.pyplot(fig3d, use_container_width=False)
+        with col2:
+            fig3d = plot_vcg_interactive(
+                vector_signals, st.session_state["theme"])
+            stpyvista(fig3d)
+        # fig_html = mpld3.fig_to_html(fig3d)
+        # components.html(fig_html, height=600)
 else:
     st.info('**Loading VCG...**', icon='🔃')
 
