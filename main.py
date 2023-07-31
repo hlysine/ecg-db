@@ -26,7 +26,11 @@ if not os.path.isfile(path + 'ptbxl_database.csv'):
                     'khyeh0719/ptb-xl-dataset', '--unzip'])
 
 # Configure libraries
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="ECG Database",
+    page_icon="🫀",
+    layout="wide",
+)
 pd.set_option('display.max_columns', None)
 
 # Initialize session state
