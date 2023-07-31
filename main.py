@@ -600,9 +600,10 @@ if st.session_state["expander_state"] == False:
         options=('Report', 'Continuous'),
     )
 
-    fig = plot_ecg(lead_signals, sampling_rate,
-                   chart_mode, st.session_state["theme"])
-    st.altair_chart(fig, use_container_width=False)
+    with st.spinner('Loading ECG...'):
+        fig = plot_ecg(lead_signals, sampling_rate,
+                       chart_mode, st.session_state["theme"])
+        st.altair_chart(fig, use_container_width=False)
 else:
     st.info('**Loading ECG...**', icon='🔃')
 
