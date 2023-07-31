@@ -849,15 +849,16 @@ if st.session_state["expander_state"] == False:
         fig = plot_vcg(vector_signals, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
         col1, col2 = st.columns(spec=[0.2, 0.8])
-        with col1:
-            h_angle = st.slider("Horizontal view angle", min_value=-180,
-                                max_value=180, value=-60, step=5)
-            v_angle = st.slider("Vertical view angle", min_value=-180,
-                                max_value=180, value=30, step=5)
-        with col2:
-            fig3d = plot_vcg_3d(vector_signals, h_angle,
-                                v_angle, st.session_state["theme"])
-            st.pyplot(fig3d, use_container_width=False)
+        with st.spinner('Loading 3D plot...'):
+            with col1:
+                h_angle = st.slider("Horizontal view angle", min_value=-180,
+                                    max_value=180, value=-60, step=5)
+                v_angle = st.slider("Vertical view angle", min_value=-180,
+                                    max_value=180, value=30, step=5)
+            with col2:
+                fig3d = plot_vcg_3d(vector_signals, h_angle,
+                                    v_angle, st.session_state["theme"])
+                st.pyplot(fig3d, use_container_width=False)
         # fig3d = plot_vcg_interactive(
         #     vector_signals, st.session_state["theme"])
         # stpyvista(fig3d)
