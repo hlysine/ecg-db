@@ -56,9 +56,9 @@ if "ecg" in query_params:
     st.session_state["diagnostic_class"] = None
 
 st.write("""
-# ECG Quiz
+# ECG Database
 
-Click to see a random ECG and try to guess the condition.
+Filter and view the ECG, VCG and diagnosis data from the PTB-XL ECG Database.
 """)
 
 
