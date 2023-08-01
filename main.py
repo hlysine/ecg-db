@@ -39,8 +39,6 @@ if "expander_state" not in st.session_state:
     st.session_state["expander_state"] = True
 if "theme" not in st.session_state:
     st.session_state["theme"] = "dark"
-if "theme_detected" not in st.session_state:
-    st.session_state["theme_detected"] = False
 if "history" not in st.session_state:
     st.session_state["history"] = []
 
@@ -928,7 +926,7 @@ else:
     st.info('**Loading VCG...**', icon='🔃')
 
 # Detect browser theme
-if st.session_state["expander_state"] == True and st.session_state["theme_detected"] == False:
+if st.session_state["expander_state"] == True:
     theme = st_js(
         """window.getComputedStyle( document.body ,null).getPropertyValue('background-color')""")
     if theme != 0:
@@ -937,9 +935,6 @@ if st.session_state["expander_state"] == True and st.session_state["theme_detect
             st.session_state["theme"] = "light"
         else:
             st.session_state["theme"] = "dark"
-        st.session_state["theme_detected"] = True
-elif st.session_state["theme_detected"] == True:
-    theme = st.session_state["theme"]
 
 
 # To forcibly collapse the expanders, the whole page is rendered twice.
