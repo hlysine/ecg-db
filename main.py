@@ -36,28 +36,53 @@ pd.set_option('display.max_columns', None)
 # Initialize session state
 if "expander_state" not in st.session_state:
     st.session_state["expander_state"] = True
-if "record_index" not in st.session_state:
-    st.session_state["record_index"] = None
-if "validated_by_human" not in st.session_state:
-    st.session_state["validated_by_human"] = True
-if "second_opinion" not in st.session_state:
-    st.session_state["second_opinion"] = False
-if "heart_axis" not in st.session_state:
-    st.session_state["heart_axis"] = False
-if "scp_code" not in st.session_state:
-    st.session_state["scp_code"] = None
-if "diagnostic_class" not in st.session_state:
-    st.session_state["diagnostic_class"] = None
 if "theme" not in st.session_state:
     st.session_state["theme"] = "dark"
-query_params = st.experimental_get_query_params()
-if "ecg" in query_params:
-    st.session_state["record_index"] = int(query_params["ecg"][0]) - 1
-    st.session_state["validated_by_human"] = False
-    st.session_state["second_opinion"] = False
-    st.session_state["heart_axis"] = False
-    st.session_state["scp_code"] = None
-    st.session_state["diagnostic_class"] = None
+if "theme_detected" not in st.session_state:
+    st.session_state["theme_detected"] = False
+
+
+def query_to_filters():
+    filters = {}
+    query_params = st.experimental_get_query_params()
+    if "id" in query_params:
+        filters["record_index"] = int(query_params["id"][0]) - 1
+    if "validated" in query_params:
+        filters["validated_by_human"] = query_params["validated"][0].lower() == "true"
+    if "second_opinion" in query_params:
+        filters["second_opinion"] = query_params["second_opinion"][0].lower() == "true"
+    if "axis" in query_params:
+        filters["heart_axis"] = query_params["axis"][0].lower() == "true"
+    if "clean" in query_params:
+        filters["no_artifacts"] = query_params["clean"][0].lower() == "true"
+    if "condition" in query_params:
+        filters["scp_code"] = query_params["condition"]
+    if "d_class" in query_params:
+        filters["diagnostic_class"] = query_params["d_class"]
+    return filters
+
+
+def filters_to_query():
+    query_params = {}
+    if "record_index" in filters:
+        query_params["id"] = filters["record_index"] + 1
+    if "validated_by_human" in filters:
+        query_params["validated"] = filters["validated_by_human"]
+    if "second_opinion" in filters:
+        query_params["second_opinion"] = filters["second_opinion"]
+    if "heart_axis" in filters:
+        query_params["axis"] = filters["heart_axis"]
+    if "no_artifacts" in filters:
+        query_params["clean"] = filters["no_artifacts"]
+    if "scp_code" in filters:
+        query_params["condition"] = filters["scp_code"]
+    if "diagnostic_class" in filters:
+        query_params["d_class"] = filters["diagnostic_class"]
+    st.experimental_set_query_params(**query_params)
+
+
+filters = query_to_filters()
+
 
 st.write("""
 # ECG Database
@@ -100,12 +125,10 @@ def load_records():
             'pacemaker': optional_string,
         }
     )
+    return record_df.reset_index()
 
-    return record_df
 
-
-total_record_df = load_records()
-record_df = total_record_df
+record_df = load_records()
 
 
 @st.cache_data(ttl=60 * 60)
@@ -117,6 +140,7 @@ def load_annotations():
     def int_bool(x): return False if x == '' else True
     def optional_int(x): return pd.NA if x == '' else int(float(x))
     def optional_string(x): return pd.NA if x == '' else x
+    def mandatory_string(x): return 'OTHER' if x == '' else x
     annotation_df = pd.read_csv(path+'scp_statements.csv', index_col=0)
     annotation_df = pd.read_csv(
         path+'scp_statements.csv',
@@ -125,8 +149,8 @@ def load_annotations():
             'diagnostic': int_bool,
             'form': int_bool,
             'rhythm': int_bool,
-            'diagnostic_class': optional_string,
-            'diagnostic_subclass': optional_string,
+            'diagnostic_class': mandatory_string,
+            'diagnostic_subclass': mandatory_string,
             'AHA code': optional_int,
             'aECG REFID': optional_string,
             'CDISC Code': optional_string,
@@ -140,103 +164,117 @@ def load_annotations():
 
 annotation_df = load_annotations()
 
-
-def applyFilter():
-    """
-    Filter records based on filters in session state.
-    """
-    global total_record_df
-    global record_df
-    record_df = total_record_df
-    if st.session_state["validated_by_human"]:
-        record_df = record_df[record_df.validated_by_human]
-    if st.session_state["second_opinion"]:
-        record_df = record_df[record_df.second_opinion]
-    if st.session_state["heart_axis"]:
-        record_df = record_df[pd.isna(record_df.heart_axis) == False]
-    if st.session_state["scp_code"] is not None:
-        record_df = record_df[record_df.scp_codes.apply(
-            lambda x: st.session_state["scp_code"] in x)]
-    if st.session_state["diagnostic_class"] is not None:
-        class_list = annotation_df.reset_index().groupby(
-            ['diagnostic_class'])['scp_code'].apply(list)[st.session_state["diagnostic_class"]]
-
-        record_df = record_df[record_df.scp_codes.apply(
-            lambda x: any(item in class_list for item in x))]
-
-
-applyFilter()
-
-# Select a random ECG record
-if st.session_state["record_index"] is None:
-    st.session_state["record_index"] = random.randint(0, len(record_df) - 1)
-
-record = record_df.iloc[st.session_state["record_index"]]
-
-# Display the selected ECG id in the URL
-# Only do so if this is the final re-render
-if st.session_state["expander_state"] == False:
-    st.experimental_set_query_params(ecg=record.name)
-
-
-def random_record(validated_by_human, second_opinion, heart_axis, scp_code=None, diagnostic_class=None):
-    """
-    Set session states based on filters.
-    The page will be re-rendered automatically because this is used as an event handler.
-    """
-    global record
-    st.session_state["validated_by_human"] = validated_by_human
-    st.session_state["second_opinion"] = second_opinion
-    st.session_state["heart_axis"] = heart_axis
-    st.session_state["scp_code"] = scp_code
-    st.session_state["diagnostic_class"] = diagnostic_class
-    applyFilter()
-    st.experimental_set_query_params(ecg='')
-    st.session_state["record_index"] = None
-    st.session_state["expander_state"] = True
-
 # ===============================
 # ECG Filters
 # ===============================
 
 
-col1, col2, col3, col4 = st.columns(4)
+with st.form("filter_form"):
+    col1, col2, col3, col4 = st.columns(4)
 
-with col1:
-    st.button("New ECG", key='new_ecg1',
-              help='Click to see a new ECG', on_click=lambda: random_record(False, False, False))
-with col2:
-    st.button("New human-validated ECG", key='new_ecg2',
-              help='Click to see a new ECG with results validated by a human', on_click=lambda: random_record(True, False, False))
-with col3:
-    st.button("New double-validated ECG", key='new_ecg3',
-              help='Click to see a new ECG with results validated twice', on_click=lambda: random_record(True, True, False))
-with col4:
-    st.button("New ECG with heart axis", key='new_ecg4',
-              help='Click to see a new ECG with heart axis data', on_click=lambda: random_record(False, False, True))
+    with col1:
+        filters['validated_by_human'] = st.checkbox("Human-validated", key='new_ecg1', value=filters['validated_by_human'] if 'validated_by_human' in filters else True,
+                                                    help='Filter ECGs with results validated by a human')
+    with col2:
+        filters['second_opinion'] = st.checkbox("Double-validated", key='new_ecg2', value=filters['second_opinion'] if 'second_opinion' in filters else False,
+                                                help='Filter ECGs with results validated twice')
+    with col3:
+        filters['heart_axis'] = st.checkbox("Heart axis", key='new_ecg3', value=filters['heart_axis'] if 'heart_axis' in filters else False,
+                                            help='Filter ECGs with heart axis data')
+    with col4:
+        filters['no_artifacts'] = st.checkbox("No artifacts", key='new_ecg4', value=filters['no_artifacts'] if 'no_artifacts' in filters else True,
+                                              help='Filter ECGs with no artifacts (e.g. baseline drift and noises)')
 
-if st.session_state["expander_state"] == False:
-    with st.expander("Filter by class", expanded=st.session_state["expander_state"]):
+    with st.expander("Filter by class"):
+        if 'diagnostic_class' in filters:
+            del filters['diagnostic_class']
         cols = st.columns(2)
         class_df = annotation_df.groupby(['diagnostic_class'])[
-            'Statement Category'].apply(set)
+            'Statement Category'].apply(set).reset_index()
         for i in range(len(class_df)):
-            description = ', '.join(class_df.iloc[i])
-            cols[i % 2].button(description, key=f'filter_class_{i}', help=f"Find a new ECG with description", on_click=lambda i=i: random_record(
-                False, False, False, None, class_df.index[i]))
-else:
-    st.write('**Loading...**')
+            key = class_df.iloc[i]['diagnostic_class']
+            description = 'Other conditions' if key == 'OTHER' else ', '.join(
+                class_df.iloc[i]['Statement Category'])
+            selected_class = cols[i % 2].checkbox(
+                description, key=f'filter_class_{i}', value=key in filters['diagnostic_class'] if 'diagnostic_class' in filters else False)
+            if selected_class:
+                if 'diagnostic_class' not in filters:
+                    filters['diagnostic_class'] = [key]
+                elif key not in filters['diagnostic_class']:
+                    filters['diagnostic_class'].append(key)
 
-if st.session_state["expander_state"] == False:
-    with st.expander("Filter by condition", expanded=st.session_state["expander_state"]):
+    with st.expander("Filter by condition"):
+        if 'scp_code' in filters:
+            del filters['scp_code']
         cols = st.columns(4)
         for i in range(len(annotation_df)):
-            cols[i % 4].button(annotation_df.iloc[i]['description'], key=f'filter_condition_{i}', help=f"Find a new ECG with {annotation_df.iloc[i]['description']}", on_click=lambda i=i: random_record(
-                False, False, False, annotation_df.iloc[i].name))
-else:
-    st.write('**Loading...**')
+            key = annotation_df.iloc[i].name
+            description = annotation_df.iloc[i]['description']
+            selected_code = cols[i % 4].checkbox(
+                description, key=f'filter_condition_{i}', value=key in filters['scp_code'] if 'scp_code' in filters else False)
+            if selected_code:
+                if 'scp_code' not in filters:
+                    filters['scp_code'] = [key]
+                elif key not in filters['scp_code']:
+                    filters['scp_code'].append(key)
 
-st.write(f'*{len(record_df)} ECGs with the selected filters*')
+    submitted = st.form_submit_button(
+        label='Random ECG', help='Find a new ECG with the selected filters')
+    if submitted:
+        if 'record_index' in filters:
+            del filters['record_index']
+        filters_to_query()
+        st.session_state["expander_state"] = True
+
+
+def applyFilter():
+    """
+    Filter records based on filters in session state.
+    """
+    global record_df
+    filtered_record_df = record_df
+    if "validated_by_human" in filters and filters['validated_by_human']:
+        filtered_record_df = filtered_record_df[filtered_record_df.validated_by_human]
+    if "second_opinion" in filters and filters['second_opinion']:
+        filtered_record_df = filtered_record_df[filtered_record_df.second_opinion]
+    if "heart_axis" in filters and filters['heart_axis']:
+        filtered_record_df = filtered_record_df[pd.isna(
+            filtered_record_df.heart_axis) == False]
+    if "no_artifacts" in filters and filters['no_artifacts']:
+        filtered_record_df = filtered_record_df[pd.isna(filtered_record_df.baseline_drift) & pd.isna(
+            filtered_record_df.static_noise) & pd.isna(filtered_record_df.burst_noise) & pd.isna(filtered_record_df.electrodes_problems)]
+    if "scp_code" in filters and not "diagnostic_class" in filters:
+        filtered_record_df = filtered_record_df[filtered_record_df.scp_codes.apply(
+            lambda x: any(code in filters["scp_code"] for code in x))]
+    elif not "scp_code" in filters and "diagnostic_class" in filters:
+        filtered_codes = annotation_df[annotation_df['diagnostic_class'].isin(
+            filters["diagnostic_class"])].reset_index()['scp_code'].values
+        filtered_record_df = filtered_record_df[filtered_record_df.scp_codes.apply(
+            lambda x: any(code in filtered_codes for code in x))]
+    elif "scp_code" in filters and "diagnostic_class" in filters:
+        filtered_codes = annotation_df[annotation_df['diagnostic_class'].isin(
+            filters["diagnostic_class"])].reset_index()['scp_code'].values
+        filtered_record_df = filtered_record_df[filtered_record_df.scp_codes.apply(
+            lambda x: any(code in filters["scp_code"] or code in filtered_codes for code in x))]
+    return filtered_record_df
+
+
+filtered_record_df = applyFilter()
+
+if len(filtered_record_df) == 0:
+    st.error('No ECGs found with the selected filters.')
+    st.stop()
+
+# Select a random ECG record
+if "record_index" not in filters or filters["record_index"] == None:
+    record = filtered_record_df.iloc[random.randint(
+        0, len(filtered_record_df) - 1)]
+    filters["record_index"] = record.name
+    filters_to_query()
+else:
+    record = record_df.iloc[filters["record_index"]]
+
+st.write(f'*{len(filtered_record_df)} ECGs with the selected filters*')
 
 st.write("----------------------------")
 
@@ -266,7 +304,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.write(f"**Patient ID:** {record.patient_id}")
-    st.write(f"**ECG ID:** {record.name}")
+    st.write(f"**ECG ID:** {record.ecg_id}")
 
 with col2:
     st.write(f"**Age:** {record.age}")
@@ -297,9 +335,6 @@ def load_raw_data(df, sampling_rate, path):
         data = wfdb.rdsamp(path + df.filename_hr)
     data = pd.DataFrame(data[0], columns=data[1]['sig_name']).reset_index()
     return data
-
-
-lead_signals = load_raw_data(record, sampling_rate, path)
 
 
 @st.cache_resource(max_entries=2)
@@ -605,6 +640,7 @@ if st.session_state["expander_state"] == False:
     )
 
     with st.spinner('Loading ECG...'):
+        lead_signals = load_raw_data(record, sampling_rate, path)
         fig = plot_ecg(lead_signals, sampling_rate,
                        chart_mode, st.session_state["theme"])
         st.altair_chart(fig, use_container_width=False)
@@ -658,8 +694,6 @@ else:
 # ===============================
 # Vectorcardiogram
 # ===============================
-
-hd_lead_signals = load_raw_data(record, 500, path)
 
 kors_transform = [
     {
@@ -850,6 +884,7 @@ def plot_vcg_3d(lead_signals, h_angle, v_angle, theme):
 
 if st.session_state["expander_state"] == False:
     with st.expander("Vectorcardiogram (Approximation)", expanded=st.session_state["expander_state"]):
+        hd_lead_signals = load_raw_data(record, 500, path)
         vector_signals = calculate_kors_transform(hd_lead_signals)
         fig = plot_vcg(vector_signals, st.session_state["theme"])
         st.pyplot(fig, use_container_width=False)
@@ -873,7 +908,7 @@ else:
     st.info('**Loading VCG...**', icon='🔃')
 
 # Detect browser theme
-if st.session_state["expander_state"] == True:
+if st.session_state["expander_state"] == True and st.session_state["theme_detected"] == False:
     theme = st_js(
         """window.getComputedStyle( document.body ,null).getPropertyValue('background-color')""")
     if theme != 0:
@@ -882,6 +917,9 @@ if st.session_state["expander_state"] == True:
             st.session_state["theme"] = "light"
         else:
             st.session_state["theme"] = "dark"
+        st.session_state["theme_detected"] = True
+elif st.session_state["theme_detected"] == True:
+    theme = st.session_state["theme"]
 
 
 # To forcibly collapse the expanders, the whole page is rendered twice.
