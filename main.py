@@ -30,6 +30,7 @@ st.set_page_config(
     page_title="ECG Database",
     page_icon="🫀",
     layout="wide",
+    initial_sidebar_state="collapsed"
 )
 pd.set_option('display.max_columns', None)
 
@@ -40,6 +41,8 @@ if "theme" not in st.session_state:
     st.session_state["theme"] = "dark"
 if "theme_detected" not in st.session_state:
     st.session_state["theme_detected"] = False
+if "history" not in st.session_state:
+    st.session_state["history"] = []
 
 
 def query_to_filters():
@@ -165,9 +168,22 @@ def load_annotations():
 annotation_df = load_annotations()
 
 # ===============================
-# ECG Filters
+# Browsing history
 # ===============================
 
+with st.sidebar:
+    st.write("**Browsing history:**")
+    if len(st.session_state['history']) == 0:
+        st.write('No ECGs viewed yet.')
+    else:
+        for history in st.session_state['history']:
+            st.write(
+                f"""<a href="?id={history + 1}">{history + 1} - {', '.join(record_df.iloc[history].scp_codes.keys())}</a>""", unsafe_allow_html=True)
+
+
+# ===============================
+# ECG Filters
+# ===============================
 
 with st.form("filter_form"):
     col1, col2, col3, col4 = st.columns(4)
@@ -273,6 +289,10 @@ if "record_index" not in filters or filters["record_index"] == None:
     filters_to_query()
 else:
     record = record_df.iloc[filters["record_index"]]
+
+if filters["record_index"] in st.session_state['history']:
+    st.session_state['history'].remove(filters["record_index"])
+st.session_state['history'].insert(0, filters["record_index"])
 
 st.write(f'*{len(filtered_record_df)} ECGs with the selected filters*')
 
