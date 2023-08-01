@@ -5,11 +5,9 @@ import numpy as np
 import wfdb
 import ast
 import time
-from zipfile import ZipFile
 import os.path
 import altair as alt
 from streamlit_javascript import st_javascript as st_js
-import streamlit.components.v1 as components
 from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
