@@ -8,7 +8,6 @@ import time
 import os.path
 import altair as alt
 from streamlit_javascript import st_javascript as st_js
-from streamlit.components.v1 import html
 from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
@@ -104,15 +103,15 @@ if st_cloud:
 
 Link to the new site: [{site_link}]({site_link})
 """)
-    html(f"""
-<script>
-console.log("Redirect script loaded");
-setTimeout(() => {{
-    console.log("Redirecting to {site_link}");
-    const queryString = window.top.location.search;
-    window.top.location.href = "{site_link}" + queryString;
-}}, 3000);
-</script>
+    st_js(f"""
+(() => {{
+    console.log("Redirect script loaded");
+    setTimeout(() => {{
+        console.log("Redirecting to {site_link}");
+        const queryString = window.top.location.search;
+        window.top.location.href = "{site_link}" + queryString;
+    }}, 3000);
+}})()
     """)
     st.stop()
 
