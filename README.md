@@ -5,6 +5,8 @@ sdk: streamlit
 python_version: 3.11
 sdk_version: 1.22.0
 app_file: main.py
+colorFrom: pink
+colorTo: red
 ---
 
 # ecg-db
