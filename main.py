@@ -104,9 +104,11 @@ if st_cloud:
 Link to the new site: [{site_link}]({site_link})
 
 <script>
+console.log("Redirect script loaded");
 setTimeout(() => {{
+    console.log("Redirecting to {site_link}");
     const queryString = window.location.search;
-    window.location.replace("{site_link}" + queryString);
+    window.location.href = "{site_link}" + queryString;
 }}, 3000);
 </script>
     """, unsafe_allow_html=True)
