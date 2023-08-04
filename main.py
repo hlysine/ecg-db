@@ -20,8 +20,14 @@ sampling_rate = 100
 if not os.path.isfile(path + 'ptbxl_database.csv'):
     subprocess.run(['pip', 'uninstall', '-y', 'kaggle'])
     subprocess.run(['pip', 'install', '--user', 'kaggle'])
-    subprocess.run(['~/.local/bin/kaggle', 'datasets', 'download',
-                    'khyeh0719/ptb-xl-dataset', '--unzip'])
+    try:
+        # Streamlit cloud
+        subprocess.run(['/home/appuser/.local/bin/kaggle', 'datasets', 'download',
+                        'khyeh0719/ptb-xl-dataset', '--unzip'])
+    except:
+        # Hugging Face
+        subprocess.run(['/home/user/.local/bin/kaggle', 'datasets', 'download',
+                        'khyeh0719/ptb-xl-dataset', '--unzip'])
 
 # Configure libraries
 st.set_page_config(
