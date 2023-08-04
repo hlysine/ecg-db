@@ -8,6 +8,7 @@ import time
 import os.path
 import altair as alt
 from streamlit_javascript import st_javascript as st_js
+from streamlit.components.v1 import html
 from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
@@ -102,16 +103,17 @@ if st_cloud:
 **ecg-db has a new home with increased stability. Redirecting you to the new site in 3 seconds...**
 
 Link to the new site: [{site_link}]({site_link})
-
+""")
+    html("""
 <script>
 console.log("Redirect script loaded");
 setTimeout(() => {{
     console.log("Redirecting to {site_link}");
-    const queryString = window.location.search;
-    window.location.href = "{site_link}" + queryString;
+    const queryString = window.top.location.search;
+    window.top.location.href = "{site_link}" + queryString;
 }}, 3000);
 </script>
-    """, unsafe_allow_html=True)
+    """)
     st.stop()
 
 
