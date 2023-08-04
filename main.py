@@ -99,12 +99,11 @@ Filter and view the ECG, VCG and diagnosis data from the PTB-XL ECG Database.
 site_link = 'https://huggingface.co/spaces/lysine/ecg-db'
 st_cloud = os.path.isdir('/home/appuser')
 if st_cloud:
-    st.markdown(f"""
+    st.warning(f"""
 **ecg-db has a new home with increased stability. Please access ecg-db from the new link below:**
 
 Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.experimental_get_query_params(), doseq=True)})
-""")
-    st.stop()
+""", icon='✨')
 
 
 @st.cache_data(ttl=60 * 60)
