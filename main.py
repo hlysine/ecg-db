@@ -102,7 +102,7 @@ if st_cloud:
     st.markdown(f"""
 **ecg-db has a new home with increased stability. Please access ecg-db from the new link below:**
 
-Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.experimental_get_query_params())})
+Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.experimental_get_query_params(), doseq=True)})
 """)
     st.stop()
 
