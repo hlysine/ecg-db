@@ -104,7 +104,7 @@ if st_cloud:
 
 Link to the new site: [{site_link}]({site_link})
 """)
-    html("""
+    html(f"""
 <script>
 console.log("Redirect script loaded");
 setTimeout(() => {{
