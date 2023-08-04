@@ -11,6 +11,7 @@ from streamlit_javascript import st_javascript as st_js
 from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
+import urllib.parse
 
 # Define constants
 path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
@@ -99,20 +100,10 @@ site_link = 'https://huggingface.co/spaces/lysine/ecg-db'
 st_cloud = os.path.isdir('/home/appuser')
 if st_cloud:
     st.markdown(f"""
-**ecg-db has a new home with increased stability. Redirecting you to the new site in 3 seconds...**
+**ecg-db has a new home with increased stability. Please access ecg-db from the new link below:**
 
-Link to the new site: [{site_link}]({site_link})
+Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.experimental_get_query_params())})
 """)
-    st_js(f"""
-(() => {{
-    console.log("Redirect script loaded");
-    setTimeout(() => {{
-        console.log("Redirecting to {site_link}");
-        const queryString = window.top.location.search;
-        window.top.location.href = "{site_link}" + queryString;
-    }}, 3000);
-}})()
-    """)
     st.stop()
 
 
