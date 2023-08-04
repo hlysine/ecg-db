@@ -1,3 +1,12 @@
+---
+title: ecg-db
+emoji: '🫀'
+sdk: streamlit
+python_version: 3.11
+sdk_version: 1.22.0
+app_file: main.py
+---
+
 # ecg-db
 
 A single-page web app presenting ECGs from the PTB-XL dataset.
