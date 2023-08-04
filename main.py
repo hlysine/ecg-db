@@ -95,6 +95,22 @@ st.write("""
 Filter and view the ECG, VCG and diagnosis data from the PTB-XL ECG Database.
 """)
 
+site_link = 'https://huggingface.co/spaces/lysine/ecg-db'
+st_cloud = os.path.isdir('/home/appuser')
+if st_cloud:
+    st.write(f"""
+**ecg-db has a new home with increased stability. Redirecting you to the new site in 3 seconds...**
+
+Link to the new site: [{site_link}]({site_link})
+    """)
+    st_js(f"""
+setTimeout(() => {{
+    const queryString = window.location.search;
+    window.location.replace("{site_link}" + queryString);
+}}, 3000);
+    """)
+    st.stop()
+
 
 @st.cache_data(ttl=60 * 60)
 def load_records():
