@@ -79,6 +79,7 @@ if not os.path.isfile(path + 'ptbxl_database.csv'):
         placeholder.warning(
             "An error occurred while downloading the data. Please take a screenshot of the whole page and send to the developer.")
         st.write(error)
+        st.stop()
 
 
 def query_to_filters():
