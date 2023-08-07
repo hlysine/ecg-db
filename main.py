@@ -17,19 +17,6 @@ import urllib.parse
 path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
 sampling_rate = 100
 
-# Download data from kaggle
-if not os.path.isfile(path + 'ptbxl_database.csv'):
-    subprocess.run(['pip', 'uninstall', '-y', 'kaggle'])
-    subprocess.run(['pip', 'install', '--user', 'kaggle'])
-    try:
-        # Streamlit cloud
-        subprocess.run(['/home/appuser/.local/bin/kaggle', 'datasets', 'download',
-                        'khyeh0719/ptb-xl-dataset', '--unzip'])
-    except:
-        # Hugging Face
-        subprocess.run(['/home/user/.local/bin/kaggle', 'datasets', 'download',
-                        'khyeh0719/ptb-xl-dataset', '--unzip'])
-
 # Configure libraries
 st.set_page_config(
     page_title="ECG Database",
@@ -46,6 +33,52 @@ if "theme" not in st.session_state:
     st.session_state["theme"] = "dark"
 if "history" not in st.session_state:
     st.session_state["history"] = []
+if "forceload" not in st.session_state:
+    st.session_state["forceload"] = False
+
+# Show title and site check
+st.write("""
+# ECG Database
+
+Filter and view the ECG, VCG and diagnosis data from the PTB-XL ECG Database.
+""")
+
+site_link = 'https://lysine-ecg-db.hf.space/'
+st_cloud = os.path.isdir('/home/appuser')
+if st_cloud:
+    st.warning(f"""
+**ecg-db has a new home with increased stability. Please access ecg-db from the new link below:**
+
+Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.experimental_get_query_params(), doseq=True)})
+""", icon='✨')
+    if not st.session_state["forceload"]:
+        with st.expander("If the new site is not working for you"):
+            if st.button("Load the app here"):
+                st.session_state["forceload"] = True
+                st.experimental_rerun()
+        st.stop()
+
+# Download data from kaggle
+if not os.path.isfile(path + 'ptbxl_database.csv'):
+    placeholder = st.empty()
+    try:
+        placeholder.info(
+            "**Downloading data.**\nThis may take a minute, but it only needs to be done once.", icon="⏳")
+        subprocess.run(['pip', 'uninstall', '-y', 'kaggle'])
+        subprocess.run(['pip', 'install', '--user', 'kaggle'])
+        try:
+            # Streamlit cloud
+            subprocess.run(['/home/appuser/.local/bin/kaggle', 'datasets', 'download',
+                            'khyeh0719/ptb-xl-dataset', '--unzip'])
+        except:
+            # Hugging Face
+            subprocess.run(['/home/user/.local/bin/kaggle', 'datasets', 'download',
+                            'khyeh0719/ptb-xl-dataset', '--unzip'])
+        placeholder.empty()
+    except Exception as error:
+        placeholder.warning(
+            "An error occurred while downloading the data. Please take a screenshot of the whole page and send to the developer.")
+        st.write(error)
 
 
 def query_to_filters():
@@ -90,22 +123,6 @@ def filters_to_query():
 filters = query_to_filters()
 
 
-st.write("""
-# ECG Database
-
-Filter and view the ECG, VCG and diagnosis data from the PTB-XL ECG Database.
-""")
-
-site_link = 'https://huggingface.co/spaces/lysine/ecg-db'
-st_cloud = os.path.isdir('/home/appuser')
-if st_cloud:
-    st.warning(f"""
-**ecg-db has a new home with increased stability. Please access ecg-db from the new link below:**
-
-Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.experimental_get_query_params(), doseq=True)})
-""", icon='✨')
-
-
 @st.cache_data(ttl=60 * 60)
 def load_records():
     """
@@ -143,7 +160,13 @@ def load_records():
     return record_df.reset_index()
 
 
-record_df = load_records()
+try:
+    record_df = load_records()
+except Exception as error:
+    st.warning(
+        "An error occurred while loading data. Please refresh the page to try again.")
+    st.write(error)
+    st.stop()
 
 
 @st.cache_data(ttl=60 * 60)
