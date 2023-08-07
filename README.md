@@ -13,6 +13,8 @@ colorTo: red
 
 A single-page web app presenting ECGs from the PTB-XL dataset.
 
+[![Open ecg-db on HF Spaces](https://huggingface.co/datasets/huggingface/badges/raw/main/open-in-hf-spaces-xl-dark.svg)](https://lysine-ecg-db.hf.space/)
+
 [![Open ecg-db on Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ecg-db.streamlit.app)
 
 This app features over 20000 ECGs from the PTB-XL dataset. You can load a random ECG after setting your filters.
