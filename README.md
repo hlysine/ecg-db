@@ -29,3 +29,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 * Thanks [PTB-XL ECG dataset](https://www.kaggle.com/datasets/khyeh0719/ptb-xl-dataset) for providing quality ECG data.
 * Thanks [kaggle](https://www.kaggle.com/) for hosting the ECG dataset and providing convenient tools to download it.
 * Thanks [Streamlit](https://streamlit.io/) for making data apps simple to create and for hosting the app online for free.
+* Thanks [Hugging Face](https://huggingface.co/) for hosting the app online for free.
