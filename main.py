@@ -41,6 +41,12 @@ st.write("""
 # ECG Database
 
 Filter and view the ECG, VCG and diagnosis data from the PTB-XL ECG Database.
+
+**Points to note**
+
+- The ECG analysis may not be 100% accurate.
+- The VCG is a derived estimate from the ECG. It may be different from an actual VCG on the same patient.
+- The ECG is virtually generated from sensor data. It is not a perfect replica of the original report printed by the ECG machine.
 """)
 
 site_link = 'https://lysine-ecg-db.hf.space/'
