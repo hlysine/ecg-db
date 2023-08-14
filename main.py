@@ -12,6 +12,7 @@ from csscolor import parse
 import subprocess
 import matplotlib.pyplot as plt
 import urllib.parse
+import psutil
 
 # Define constants
 path = 'ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1/'
@@ -67,24 +68,37 @@ Link to the new site: [{site_link}]({site_link}?{urllib.parse.urlencode(st.exper
 # Download data from kaggle
 if not os.path.isfile(path + 'ptbxl_database.csv'):
     placeholder = st.empty()
-    try:
-        placeholder.info(
-            "**Downloading data.**\nThis may take a minute, but it only needs to be done once.", icon="⏳")
-        subprocess.run(['pip', 'uninstall', '-y', 'kaggle'])
-        subprocess.run(['pip', 'install', '--user', 'kaggle'])
+    already_downloading = False
+    for proc in psutil.process_iter():
         try:
-            # Streamlit cloud
-            subprocess.run(['/home/appuser/.local/bin/kaggle', 'datasets', 'download',
-                            'khyeh0719/ptb-xl-dataset', '--unzip'])
-        except:
-            # Hugging Face
-            subprocess.run(['/home/user/.local/bin/kaggle', 'datasets', 'download',
-                            'khyeh0719/ptb-xl-dataset', '--unzip'])
-        placeholder.empty()
-    except Exception as error:
-        placeholder.warning(
-            "An error occurred while downloading the data. Please take a screenshot of the whole page and send to the developer.")
-        st.write(error)
+            # Check if process name contains the given name string.
+            if "kaggle" in proc.name().lower():
+                already_downloading = True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    if not already_downloading:
+        try:
+            placeholder.info(
+                "**Downloading data.**\nThis may take a minute, but it only needs to be done once.", icon="⏳")
+            subprocess.run(['pip', 'uninstall', '-y', 'kaggle'])
+            subprocess.run(['pip', 'install', '--user', 'kaggle'])
+            try:
+                # Streamlit cloud
+                subprocess.run(['/home/appuser/.local/bin/kaggle', 'datasets', 'download',
+                                'khyeh0719/ptb-xl-dataset', '--unzip'])
+            except:
+                # Hugging Face
+                subprocess.run(['/home/user/.local/bin/kaggle', 'datasets', 'download',
+                                'khyeh0719/ptb-xl-dataset', '--unzip'])
+            placeholder.empty()
+        except Exception as error:
+            placeholder.warning(
+                "An error occurred while downloading the data. Please take a screenshot of the whole page and send to the developer.")
+            st.write(error)
+            st.stop()
+    else:
+        placeholder.info(
+            "**Downloading data.**\nPlease refresh the page after a few minutes.", icon="⏳")
         st.stop()
 
 

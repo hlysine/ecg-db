@@ -6,3 +6,4 @@ pandas==2.0.0
 streamlit==1.22.0
 streamlit_javascript==0.1.5
 wfdb==4.1.2
+psutil==5.9.5
