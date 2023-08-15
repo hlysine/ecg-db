@@ -38,6 +38,8 @@ if "forceload" not in st.session_state:
     st.session_state["forceload"] = False
 
 # Show title and site check
+st.markdown('<a href="https://lysine-med.hf.space/" target="_self" style="color:inherit">Med</a> <span style="padding-left:0.3rem;padding-right:0.3rem">›</span> ECG',
+            unsafe_allow_html=True)
 st.write("""
 # ECG Database
 
